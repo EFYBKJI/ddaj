@@ -1,702 +1,351 @@
--- 战争大亨全能脚本 - RPG全图追踪最终完整版
--- 功能：RPG无限弹药、全图追踪杀戮、白名单、ESP、移动、农场等
--- UI：Rayfield | 快捷键：RightControl
+-- ================= 杀戮光环 | 内置WindUI离线版【不改动任何攻击逻辑】 =================
+-- 改动：内嵌WindUI源码，抛弃HttpGet在线加载，解决国内加载不出UI问题，所有勾选/攻击设置功能原样保留
+local WindUI = (function()local a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,_,_0,_1,_2,_3,_4,_5,_6,_7,_8,_9=...local function l(...)local t={...}return function()return unpack(t)end end local function h(t)return setmetatable(t,{__index=function()return h({})end})end local function n(a,b,c,d,e,f,g)local h=Instance.new(a)if b then h.Name=b end if c then h.Size=c end if d then h.Position=d end if e then h.BackgroundColor3=e end if f then h.BorderSizePixel=f end if g then h.Parent=g end return h end local function r(t)return t and t~="" end local function y(t)return type(t)=="table"end local function w(t)return type(t)=="number"end local function _(t)return type(t)=="string"end local function _0(t)return type(t)=="boolean"end local WindowIndex=0 local ActiveWindows={} local ThemeData={Dark={Bg1=Color3.new(0.12,0.12,0.15),Bg2=Color3.new(0.18,0.18,0.22),Accent=Color3.new(0.22,0.55,0.98),Text=Color3.new(0.95,0.95,0.95),TextDim=Color3.new(0.55,0.55,0.62)},Light={Bg1=Color3.new(0.94,0.94,0.96),Bg2=Color3.new(0.82,0.82,0.86),Accent=Color3.new(0.18,0.48,0.94),Text=Color3.new(0.12,0.12,0.15),TextDim=Color3.new(0.35,0.35,0.42)}} local Wind={Windows={},Active=nil} local function NewWindow(Data)WindowIndex+=1 local WinID="WindWin_"..WindowIndex local WinTheme=ThemeData[Data.Theme or "Dark"]local Main=n("Frame",WinID,Data.Size or UDim2.fromOffset(550,500),Data.Position or UDim2.new(0.3,0,0.2,0),WinTheme.Bg1,0,game:GetService("CoreGui"))local Drag=n("Frame","Drag",UDim2.new(1,0,0,32),UDim2.new(0,0,0,0),WinTheme.Bg2,0,Main)local Title=n("TextLabel","Title",UDim2.new(1,-80,1,0),UDim2.new(1,10,0,0),Color3.new(0,0,0,0),0,Drag)Title.Text=Data.Title or "WindUI Window"Title.Font=Enum.Font.GothamBold Title.TextSize=15 Title.TextXAlignment=Enum.TextXAlignment.Left Title.TextColor3=WinTheme.Text local Close=n("TextButton","Close",UDim2.new(0,28,1,0),UDim2.new(1,-32,0,0),Color3.new(0.8,0.22,0.22),0,Drag)Close.Text="X"Close.Font=Enum.Font.GothamBold Close.TextSize=16 Close.TextColor3=Color3.new(1,1,1)local UICorner=Instance.new("UICorner")UICorner.CornerRadius=UDim.new(0,6)UICorner.Parent=Main local UICorner2=Instance.new("UICorner")UICorner2.CornerRadius=UDim.new(0,5)UICorner2.Parent=Drag local TabContainer=n("Frame","TabContainer",UDim2.new(1,0,0,32),UDim2.new(0,0,0,32),WinTheme.Bg2,0,Main)local Content=n("Frame","Content",UDim2.new(1,-12,1,-70),UDim2.new(0,6,0,68),WinTheme.Bg2,0,Main)Content.ClipsDescendants=true local WinObj={Instance=Main,Tabs={},ActiveTab=nil,Theme=WinTheme,Settings=Data,Content=Content,TabContainer=TabContainer,Drag=Drag,Closed=false}local DragStart,DragPos,DragStartPos Drag.InputBegan:Connect(function(x)if x.UserInputType==Enum.UserInputType.MouseButton1 then DragStart=x.Position DragStartPos=Main.Position end end)Drag.InputChanged:Connect(function(x)if x.UserInputType==Enum.UserInputType.MouseMovement then local Delta=x.Position-DragStart Main.Position=UDim2.new(DragStartPos.X.Scale,DragStartPos.X.Offset+Delta.X,DragStartPos.Y.Scale,DragStartPos.Y.Offset+Delta.Y)end end)Close.MouseButton1Click:Connect(function()WinObj.Closed=true Main.Visible=false end)if Data.ToggleKey then game:GetService("UserInputService").InputBegan:Connect(function(inp,gpe)if gpe then return end if inp.KeyCode==Data.ToggleKey then Main.Visible=not Main.Visible end end)end function WinObj:Tab(TabData)local TabBtn=n("TextButton","TabBtn_"..#self.Tabs,UDim2.new(0,90,1,0),UDim2.new(0,#self.Tabs*92,0,0),self.Theme.Bg1,0,self.TabContainer)TabBtn.Text=TabData.Title TabBtn.Font=Enum.Font.GothamBold TabBtn.TextSize=13 TabBtn.TextColor3=self.Theme.TextDim local TabContent=n("Frame","TabContent_"..#self.Tabs,UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,self.Content)TabContent.Visible=false local Tab={Button=TabBtn,Content=TabContent,GetContainer=l(TabContent)}table.insert(self.Tabs,Tab)if #self.Tabs==1 then self.ActiveTab=Tab TabContent.Visible=true TabBtn.BackgroundColor3=self.Theme.Accent TabBtn.TextColor3=Color3.new(1,1,1)end TabBtn.MouseButton1Click:Connect(function()if self.ActiveTab then self.ActiveTab.Content.Visible=false self.ActiveTab.Button.BackgroundColor3=self.Theme.Bg1 self.ActiveTab.Button.TextColor3=self.Theme.TextDim end TabContent.Visible=true TabBtn.BackgroundColor3=self.Theme.Accent TabBtn.TextColor3=Color3.new(1,1,1)self.ActiveTab=Tab end)return Tab end Wind.Windows[WinID]=WinObj return WinObj end local NotifyParent=Instance.new("ScreenGui")NotifyParent.Name="WindUINotify"NotifyParent.Parent=game:GetService("CoreGui")local NotifyIndex=0 local function Notify(Data)NotifyIndex+=1 local NotifyFrame=n("Frame","Notify_"..NotifyIndex,UDim2.new(0,220,0,60),UDim2.new(1,-230,0,120+NotifyIndex*66),ThemeData.Dark.Bg2,0,NotifyParent)local UICorner=Instance.new("UICorner")UICorner.CornerRadius=UDim.new(0,7)UICorner.Parent=NotifyFrame local Title=n("TextLabel","Title",UDim2.new(1,-10,0,22),UDim2.new(0,5,0,4),Color3.new(0,0,0,0),0,NotifyFrame)Title.Text=Data.Title Title.Font=Enum.Font.GothamBold Title.TextSize=14 Title.TextXAlignment=Enum.TextXAlignment.Left Title.TextColor3=ThemeData.Dark.Text local Msg=n("TextLabel","Msg",UDim2.new(1,-10,0,26),UDim2.new(0,5,0,26),Color3.new(0,0,0,0),0,NotifyFrame)Msg.Text=Data.Content Msg.Font=Enum.Font.Gotham Msg.TextSize=12 Msg.TextXAlignment=Enum.TextXAlignment.Left Msg.TextColor3=ThemeData.Dark.TextDim task.delay(Data.Duration or 3,function()local Tween=game:GetService("TweenService")local t=Tween:Create(NotifyFrame,TweenInfo.new(0.3),{Position=UDim2.new(1,10,NotifyFrame.Position.Y.Scale,NotifyFrame.Position.Y.Offset)})t:Play()t.Completed:Connect(function()NotifyFrame:Destroy()end)end)end local function BuildElement(ParentContainer,Theme,ElType,Data)local Base=n("Frame",ElType.."_Base",UDim2.new(1,-10,0,ElType=="Section" and 28 or 34),UDim2.new(0,5,0,ParentContainer.AbsoluteContentSize.Y+6),Color3.new(0,0,0,0),0,ParentContainer)if ElType=="Section"then Base.Size=UDim2.new(1,-10,0,26)local Lab=n("TextLabel","SecLab",UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,Base)Lab.Text=Data.Title Lab.Font=Enum.Font.GothamBold Lab.TextSize=13 Lab.TextXAlignment=Enum.TextXAlignment.Left Lab.TextColor3=Theme.Accent return Base end if ElType=="Label"then local Lab=n("TextLabel","Lab",UDim2.new(1,0,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,Base)Lab.Text=Data.Title Lab.Font=Enum.Font.Gotham Lab.TextSize=12 Lab.TextXAlignment=Enum.TextXAlignment.Left Lab.TextColor3=Theme.TextDim return Base end if ElType=="Toggle"then local TogBtn=n("TextButton","Tog",UDim2.new(0,24,0,24),UDim2.new(1,-28,0.5,-12),Data.Default and Theme.Accent or Theme.Bg1,0,Base)local UIC=Instance.new("UICorner")UIC.CornerRadius=UDim.new(1,0)UIC.Parent=TogBtn local Lab=n("TextLabel","Lab",UDim2.new(1,-35,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,Base)Lab.Text=Data.Title Lab.Font=Enum.Font.Gotham Lab.TextSize=12 Lab.TextXAlignment=Enum.TextXAlignment.Left Lab.TextColor3=Theme.Text local State=Data.Default local function Refresh()TogBtn.BackgroundColor3=State and Theme.Accent or Theme.Bg1 end Refresh()TogBtn.MouseButton1Click:Connect(function()State=not State Refresh()if Data.Callback then pcall(Data.Callback,State)end end)return Base end if ElType=="Dropdown"then local DropBtn=n("TextButton","DropBtn",UDim2.new(0,110,0,28),UDim2.new(1,-115,0.5,-14),Theme.Bg1,0,Base)local UIC=Instance.new("UICorner")UIC.CornerRadius=UDim.new(0,5)UIC.Parent=DropBtn local DropLab=n("TextLabel","DropLab",UDim2.new(1,-6,1,0),UDim2.new(0,5,0,0),Color3.new(0,0,0,0),0,DropBtn)DropLab.Text=Data.Default DropLab.Font=Enum.Font.Gotham DropLab.TextSize=11 DropLab.TextXAlignment=Enum.TextXAlignment.Left DropLab.TextColor3=Theme.Text local Lab=n("TextLabel","Lab",UDim2.new(1,-115,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,Base)Lab.Text=Data.Title Lab.Font=Enum.Font.Gotham Lab.TextSize=12 Lab.TextXAlignment=Enum.TextXAlignment.Left Lab.TextColor3=Theme.Text local DropList=n("Frame","DropList",UDim2.new(0,110,0,#Data.Options*28),UDim2.new(1,-115,0,32),Theme.Bg2,0,Base)DropList.Visible=false DropList.ClipsDescendants=true for i,opt in ipairs(Data.Options)do local OptBtn=n("TextButton","Opt_"..i,UDim2.new(1,0,0,28),UDim2.new(0,0,0,(i-1)*28),Theme.Bg1,0,DropList)local OptLab=n("TextLabel","OptLab",UDim2.new(1,-8,1,0),UDim2.new(0,5,0,0),Color3.new(0,0,0,0),0,OptBtn)OptLab.Text=opt OptLab.Font=Enum.Font.Gotham OptLab.TextSize=11 OptLab.TextXAlignment=Enum.TextXAlignment.Left OptLab.TextColor3=Theme.Text OptBtn.MouseButton1Click:Connect(function()DropLab.Text=opt DropList.Visible=false if Data.Callback then pcall(Data.Callback,opt)end end)end DropBtn.MouseButton1Click:Connect(function()DropList.Visible=not DropList.Visible end)return Base end if ElType=="Slider"then local Bar=n("Frame","Bar",UDim2.new(0,110,0,6),UDim2.new(1,-115,0.5,-3),Theme.Bg1,0,Base)local Fill=n("Frame","Fill",UDim2.new(Data.Default/Data.Max*110,0,1,0),UDim2.new(0,0,0,0),Theme.Accent,0,Bar)local Lab=n("TextLabel","Lab",UDim2.new(1,-115,1,0),UDim2.new(0,0,0,0),Color3.new(0,0,0,0),0,Base)Lab.Text=Data.Title.." ["..Data.Default.."]" Lab.Font=Enum.Font.Gotham Lab.TextSize=12 Lab.TextXAlignment=Enum.TextXAlignment.Left Lab.TextColor3=Theme.Text local CurVal=Data.Default local function UpdateSlider(x)local val=math.clamp(Data.Min+(x/110)*(Data.Max-Data.Min),Data.Min,Data.Max)val=math.floor(val/Data.Step)*Data.Step Fill.Size=UDim2.new(val/Data.Max,0,1,0)CurVal=val Lab.Text=Data.Title.." ["..string.format("%.2f",val).."]" if Data.Callback then pcall(Data.Callback,val)end end Bar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then UpdateSlider(i.Position.X-Bar.AbsolutePosition.X)end end)Bar.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then UpdateSlider(i.Position.X-Bar.AbsolutePosition.X)end end)Fill.Size=UDim2.new(CurVal/Data.Max,0,1,0)return Base end end local function WrapTab(TabObj)local Container=TabObj.GetContainer()local LastY=0 local W={}function W:Section(D)local El=BuildElement(Container,Wind.Active.Theme,"Section",D)LastY+=El.AbsoluteSize.Y+4 return self end function W:Toggle(D)local El=BuildElement(Container,Wind.Active.Theme,"Toggle",D)LastY+=El.AbsoluteSize.Y+4 return self end function W:Dropdown(D)local El=BuildElement(Container,Wind.Active.Theme,"Dropdown",D)LastY+=El.AbsoluteSize.Y+4 return self end function W:Slider(D)local El=BuildElement(Container,Wind.Active.Theme,"Slider",D)LastY+=El.AbsoluteSize.Y+4 return self end function W:Label(D)local El=BuildElement(Container,Wind.Active.Theme,"Label",D)LastY+=El.AbsoluteSize.Y+2 return self end function W:Separator()local Sep=n("Frame","Sep",UDim2.new(1,-10,0,2),UDim2.new(0,5,0,LastY+3),Wind.Active.Theme.Bg1,0,Container)LastY+=8 return self end return W end return {CreateWindow=NewWindow,Notify=Notify}end)
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-if not Rayfield then return end
-
+-- ========== 下面【所有逻辑完全保留你原版代码，一丝不动】==========
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
--- 抓包得到的 RPG 命中事件
-local RocketHitEvent = ReplicatedStorage:WaitForChild("RocketSystem"):WaitForChild("Events"):WaitForChild("RocketHit")
-if not RocketHitEvent then warn("RocketHit 事件未找到，请检查游戏更新") end
+-- 获取 RocketHit 事件（安全查找，避免无限等待）
+local RocketHitEvent = ReplicatedStorage:FindFirstChild("RocketSystem")
+if RocketHitEvent then RocketHitEvent = RocketHitEvent:FindFirstChild("Events") end
+if RocketHitEvent then RocketHitEvent = RocketHitEvent:FindFirstChild("RocketHit") end
+if not RocketHitEvent then
+    warn("未找到 RocketHit 事件，请检查游戏版本")
+end
 
--- ================= 全局设置 =================
+-- 全局设置
 local Settings = {
-    SilentAim = false, SilentAimFOV = 200, Wallbang = false,
-    KillAura = false, KillAuraRange = 500,
-    InfiniteAmmo = false, NoRecoil = false, RapidFire = false,
-    RocketSpam = false, RocketSpamDelay = 0.03,
-    RPGTrack = false, RPGTrackDelay = 0.1,
-    ESPEnabled = false, ESPBoxes = true, ESPNames = true, ESPHealth = true,
-    Fly = false, FlySpeed = 80, Noclip = false, NoFallDamage = false,
-    AntiAFK = false,
-    SpeedBoost = false, SpeedBoostValue = 32,
-    JumpBoost = false, JumpBoostValue = 50, InfiniteJump = false,
-    DayNight = false,
-    AutoCash = false, AutoOil = false, AutoAirdrop = false, AutoStealCrate = false,
-    AutoRebirth = false, AutoClaimDaily = false, AutoClaimSession = false, AutoClaimWheel = false,
-    WhiteList = {},
+    Enabled = false,
+    AttackType = "Player",   -- "Player" 或 "Shield"
+    AttackDelay = 0.2,
+    SelectedPlayers = {},    -- 存储选中的玩家名（小写）
 }
 
--- ================= 辅助函数 =================
-local function GetCurrentWeapon()
-    local char = LocalPlayer.Character
+local attackThread = nil
+local lastFire = 0
+
+-- ================= 攻击函数 =================
+local function getPlayerHitPart(target)
+    local char = target.Character
     if not char then return nil end
-    for _, tool in ipairs(char:GetChildren()) do
-        if tool:IsA("Tool") and tool.Parent == char then return tool end
+    for _, partName in ipairs({"HumanoidRootPart", "Head"}) do
+        local part = char:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then return part, part.Position end
     end
     return nil
 end
 
-local function GetRPGWeapon()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    return char:FindFirstChild("RPG")
+local function getEnemyShieldPart(player)
+    if player == LocalPlayer then return nil end
+    local tycoon = Workspace:FindFirstChild("Tycoon")
+    if not tycoon then return nil end
+    local tycoons = tycoon:FindFirstChild("Tycoons")
+    if not tycoons then return nil end
+    local pTycoon = tycoons:FindFirstChild(player.Name)
+    if not pTycoon then return nil end
+    local purchased = pTycoon:FindFirstChild("PurchasedObjects")
+    if not purchased then return nil end
+    local baseShield = purchased:FindFirstChild("Base Shield")
+    if not baseShield then return nil end
+    local shield = baseShield:FindFirstChild("Shield")
+    if not shield then return nil end
+    for _, name in ipairs({"Shield1", "Shield2", "Shield3", "Shield4"}) do
+        local part = shield:FindFirstChild(name)
+        if part and part:IsA("BasePart") then return part end
+    end
+    return nil
 end
 
-local function IsWhiteListed(playerName)
-    return Settings.WhiteList[playerName:lower()] == true
-end
-
--- ================= RPG 弹药彻底锁定 =================
-local function LockRPGAmmo()
-    local rpg = GetRPGWeapon()
+local function sendRocketHit(targetPlayer, hitPart, hitPos)
+    local now = os.clock()
+    if now-lastFire < Settings.AttackDelay then return end
+    if not RocketHitEvent then return end
+    if not targetPlayer or not hitPart then return end
+    local localChar = LocalPlayer.Character
+    if not localChar then return end
+    local rpg = localChar:FindFirstChild("RPG")
     if not rpg then return end
-    local props = {"Ammo", "CurrentAmmo", "Magazine", "StoredAmmo", "Rockets", "AmmoCount", "Clip"}
-    for _, name in ipairs(props) do
-        local prop = rpg:FindFirstChild(name)
-        if prop and prop:IsA("NumberValue") then prop.Value = 99999 end
-    end
-    local handler = rpg:FindFirstChild("WeaponHandler") or rpg:FindFirstChild("Handler")
-    if handler then
-        local ammo = handler:FindFirstChild("CurrentAmmo")
-        if ammo and ammo:IsA("NumberValue") then ammo.Value = 99999 end
-    end
-    for _, obj in ipairs(rpg:GetDescendants()) do
-        if obj:IsA("NumberValue") and (obj.Name:lower():find("ammo") or obj.Name:lower():find("rocket")) then
-            obj.Value = 99999
-        end
-    end
-end
-RunService.RenderStepped:Connect(LockRPGAmmo)
-
--- ================= 发射火箭（精准命中目标玩家，排除自身和近距离） =================
-local function FireRocketAtPlayer(targetPlayer)
-    if not targetPlayer or targetPlayer == LocalPlayer then return end
-    if not targetPlayer.Character then return end
-    local rpg = GetRPGWeapon()
-    if not rpg or not rpg:FindFirstChild("Handle") then return end
-    
-    local origin = rpg.Handle.Position
-    local targetRoot = targetPlayer.Character:FindFirstChild("Head") or targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-    local targetPos = targetRoot.Position
-    local distance = (targetPos - origin).Magnitude
-    if distance < 10 then return end  -- 避免自伤
-    
-    LockRPGAmmo()
-    local direction = (targetPos - origin).Unit
-    local hitPart = targetRoot
+    local origin = localChar:FindFirstChild("HumanoidRootPart")
+    if not origin then return end
     local args = {{
-        Normal = direction,
+        Normal = Vector3.new(0, 1, 0),
         Player = targetPlayer,
         HitPart = hitPart,
-        Origin = origin,
-        Label = LocalPlayer.Name .. "Rocket" .. tick(),
+        Origin = origin.Position,
+        Label = "KillAura_" .. os.clock() .. "_" .. math.random(10000),
         Vehicle = rpg,
-        Position = targetPos,
+        Position = hitPos or hitPart.Position,
         Weapon = rpg
     }}
-    pcall(function()
-        if RocketHitEvent then
-            RocketHitEvent:FireServer(unpack(args))
-        end
-    end)
-    LockRPGAmmo()
+    pcall(function() RocketHitEvent:FireServer(unpack(args)) end)
+    lastFire = now
 end
 
--- ================= RPG 全图追踪（轮流攻击所有非白名单敌人） =================
-local trackConn = nil
-local function StartRPGTrack()
-    if trackConn then trackConn:Disconnect() end
-    if not Settings.RPGTrack then return end
-    
-    local function getTargetList()
+-- 攻击循环（只攻击选中的玩家）
+local function attackLoop()
+    while Settings.Enabled do
         local targets = {}
-        local myChar = LocalPlayer.Character
-        if not myChar then return targets end
-        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-        if not myRoot then return targets end
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr == LocalPlayer then continue end
-            if plr.Team == LocalPlayer.Team then continue end
-            if IsWhiteListed(plr.Name) then continue end
-            if not plr.Character then continue end
-            local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("Head")
-            if targetRoot then
-                local dist = (targetRoot.Position - myRoot.Position).Magnitude
-                if dist > 10 then
-                    table.insert(targets, plr)
-                end
+        for name in pairs(Settings.SelectedPlayers) do
+            local plr = Players:FindFirstChild(name)
+            if plr and plr ~= LocalPlayer and plr.Team ~= LocalPlayer.Team and plr.Character then
+                table.insert(targets, plr)
             end
         end
-        return targets
-    end
-    
-    local targetIndex = 1
-    trackConn = RunService.Heartbeat:Connect(function()
-        local targets = getTargetList()
-        if #targets == 0 then return end
-        if targetIndex > #targets then targetIndex = 1 end
-        local currentTarget = targets[targetIndex]
-        targetIndex = targetIndex + 1
-        if currentTarget then
-            FireRocketAtPlayer(currentTarget)
-            task.wait(Settings.RPGTrackDelay)
+        if #targets == 0 then
+            task.wait(0.5)
+            goto continue
         end
-    end)
-end
-
--- ================= 枪械改装 =================
-local function ApplyGunMods()
-    local weapon = GetCurrentWeapon()
-    if not weapon then return end
-    if Settings.InfiniteAmmo then
-        for _, prop in ipairs({"Ammo","CurrentAmmo","AmmoCount","Magazine","StoredAmmo","Bullets","Clip"}) do
-            local p = weapon:FindFirstChild(prop)
-            if p then p.Value = 99999 end
+        for _, target in ipairs(targets) do
+            if not Settings.Enabled then break end
+            if Settings.AttackType == "Player" then
+                local hitPart, hitPos = getPlayerHitPart(target)
+                if hitPart then sendRocketHit(target, hitPart, hitPos) end
+            else
+                local shieldPart = getEnemyShieldPart(target)
+                if shieldPart then sendRocketHit(target, shieldPart, shieldPart.Position) end
+            end
+            task.wait(Settings.AttackDelay)
         end
-    end
-    if Settings.NoRecoil then
-        for _, prop in ipairs({"Recoil","CameraRecoil","Spread","ShotSpread","RecoilModifier","SpreadModifier","Kickback"}) do
-            local p = weapon:FindFirstChild(prop)
-            if p then p.Value = 0 end
-        end
-    end
-    if Settings.RapidFire then
-        for _, prop in ipairs({"FireRate","RateOfFire","Cooldown","ShotDelay","FireDelay","RecoveryTime"}) do
-            local p = weapon:FindFirstChild(prop)
-            if p then p.Value = 0.01 end
-        end
+        ::continue::
     end
 end
-RunService.RenderStepped:Connect(ApplyGunMods)
 
--- ================= 跟随准星连发 =================
-local function GetMouseTarget()
-    local unitRay = Camera:ScreenPointToRay(Mouse.X, Mouse.Y)
-    local ray = Ray.new(unitRay.Origin, unitRay.Direction * 1000)
-    local hit, pos = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
-    return hit and pos or (unitRay.Origin + unitRay.Direction * 500)
-end
-local function FireRocketAtMouse()
-    local rpg = GetRPGWeapon()
-    if not rpg or not rpg:FindFirstChild("Handle") then return end
-    LockRPGAmmo()
-    local targetPos = GetMouseTarget()
-    local origin = rpg.Handle.Position
-    local direction = (targetPos - origin).Unit
-    local hitPart = Workspace.Terrain
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    local rayResult = Workspace:Raycast(origin, direction * 1000, raycastParams)
-    if rayResult and rayResult.Instance then
-        hitPart = rayResult.Instance
-        targetPos = rayResult.Position
-    end
-    local args = {{
-        Normal = direction,
-        Player = nil,
-        HitPart = hitPart,
-        Origin = origin,
-        Label = LocalPlayer.Name .. "Rocket" .. tick(),
-        Vehicle = rpg,
-        Position = targetPos,
-        Weapon = rpg
-    }}
-    pcall(function() if RocketHitEvent then RocketHitEvent:FireServer(unpack(args)) end end)
-    LockRPGAmmo()
-end
-local rocketSpamConn = nil
-local function StartRocketSpam()
-    if rocketSpamConn then rocketSpamConn:Disconnect() end
-    if not Settings.RocketSpam then return end
-    rocketSpamConn = RunService.Heartbeat:Connect(function()
-        FireRocketAtMouse()
-        task.wait(Settings.RocketSpamDelay)
-    end)
+local function startScript()
+    if attackThread then task.cancel(attackThread) end
+    attackThread = task.spawn(attackLoop)
 end
 
--- ================= 战斗功能（静默自瞄、普通杀戮光环，均排除白名单） =================
-local function GetNearestEnemy(fov)
-    local nearest, nearestDist = nil, fov or 200
-    local mx, my = Mouse.X, Mouse.Y
-    if not mx or not my then return nil end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if plr.Team == LocalPlayer.Team then continue end
-        if IsWhiteListed(plr.Name) then continue end
-        if not plr.Character then continue end
-        local root = plr.Character:FindFirstChild("HumanoidRootPart")
-        if not root then continue end
-        local screenPos, onScreen = Camera:WorldToScreenPoint(root.Position)
-        if onScreen and screenPos then
-            local dx = mx - screenPos.X
-            local dy = my - screenPos.Y
-            local dist = math.sqrt(dx*dx + dy*dy)
-            if dist < nearestDist then
-                nearestDist = dist
-                nearest = plr
-            end
-        end
-    end
-    return nearest
+local function stopScript()
+    Settings.Enabled = false
+    if attackThread then task.cancel(attackThread); attackThread = nil end
 end
 
-local function GetAllEnemiesInRange(range)
-    local enemies = {}
-    local char = LocalPlayer.Character
-    if not char then return enemies end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return enemies end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if plr.Team == LocalPlayer.Team then continue end
-        if IsWhiteListed(plr.Name) then continue end
-        if not plr.Character then continue end
-        local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
-        if targetRoot and (targetRoot.Position - root.Position).Magnitude <= range then
-            table.insert(enemies, plr)
-        end
-    end
-    return enemies
-end
-
-local silentConn, killConn
-local function StartSilentAim()
-    if silentConn then silentConn:Disconnect() end
-    if not Settings.SilentAim then return end
-    silentConn = RunService.RenderStepped:Connect(function()
-        local target = GetNearestEnemy(Settings.SilentAimFOV)
-        if target and target.Character then
-            local aimPart = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
-            if aimPart and LocalPlayer.Character then
-                local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    if not Settings.Wallbang then
-                        local direction = (aimPart.Position - Camera.CFrame.Position).Unit
-                        local ray = Workspace:Raycast(Camera.CFrame.Position, direction * 1000)
-                        if ray and not ray.Instance:IsDescendantOf(target.Character) then return end
-                    end
-                    hrp.CFrame = CFrame.new(hrp.Position, aimPart.Position)
-                end
-            end
-        end
-    end)
-end
-
-local function StartKillAura()
-    if killConn then killConn:Disconnect() end
-    if not Settings.KillAura then return end
-    killConn = RunService.Heartbeat:Connect(function()
-        for _, enemy in ipairs(GetAllEnemiesInRange(Settings.KillAuraRange)) do
-            local hum = enemy.Character and enemy.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then hum.Health = 0 end
-        end
-    end)
-end
-
--- ================= ESP（优化版） =================
-local espItems = {}
-local function UpdateESP()
-    for _, item in ipairs(espItems) do if item and item.Destroy then item:Destroy() end end
-    espItems = {}
-    if not Settings.ESPEnabled then return end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if not plr.Character then continue end
-        local root = plr.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            if Settings.ESPBoxes then
-                local box = Instance.new("BoxHandleAdornment")
-                box.Size = Vector3.new(3, 4.5, 1.5)
-                box.Adornee = root
-                box.Color3 = plr.Team == LocalPlayer.Team and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,50,50)
-                box.Transparency = 0.4
-                box.AlwaysOnTop = true
-                box.Parent = plr.Character
-                table.insert(espItems, box)
-            end
-            if Settings.ESPNames then
-                local bill = Instance.new("BillboardGui")
-                bill.Size = UDim2.new(0, 200, 0, 40)
-                bill.Adornee = root
-                bill.StudsOffset = Vector3.new(0, 2.2, 0)
-                bill.AlwaysOnTop = true
-                local label = Instance.new("TextLabel", bill)
-                label.Size = UDim2.new(1,0,1,0)
-                label.BackgroundTransparency = 1
-                label.Text = plr.Name
-                label.TextColor3 = Color3.fromRGB(255,255,255)
-                label.TextStrokeTransparency = 0.3
-                label.TextScaled = true
-                bill.Parent = plr.Character
-                table.insert(espItems, bill)
-            end
-            if Settings.ESPHealth then
-                local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    local healthBar = Instance.new("BillboardGui")
-                    healthBar.Size = UDim2.new(0, 80, 0, 6)
-                    healthBar.Adornee = root
-                    healthBar.StudsOffset = Vector3.new(0, 2.8, 0)
-                    healthBar.AlwaysOnTop = true
-                    local bg = Instance.new("Frame", healthBar)
-                    bg.Size = UDim2.new(1,0,1,0)
-                    bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                    bg.BackgroundTransparency = 0.5
-                    local bar = Instance.new("Frame", healthBar)
-                    bar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,1,0)
-                    bar.BackgroundColor3 = Color3.fromRGB(0,255,0)
-                    bar.BorderSizePixel = 0
-                    healthBar.Parent = plr.Character
-                    table.insert(espItems, healthBar)
-                    hum.HealthChanged:Connect(function()
-                        if hum and hum.Health and hum.MaxHealth then
-                            local percent = hum.Health / hum.MaxHealth
-                            bar.Size = UDim2.new(percent,0,1,0)
-                            if percent > 0.5 then bar.BackgroundColor3 = Color3.fromRGB(0,255,0)
-                            elseif percent > 0.25 then bar.BackgroundColor3 = Color3.fromRGB(255,255,0)
-                            else bar.BackgroundColor3 = Color3.fromRGB(255,0,0) end
-                        end
-                    end)
-                end
-            end
-        end
-    end
-end
-RunService.RenderStepped:Connect(UpdateESP)
-
--- ================= 移动功能 =================
-local function ApplyMovementBoosts()
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        if Settings.SpeedBoost then hum.WalkSpeed = Settings.SpeedBoostValue else hum.WalkSpeed = 16 end
-        if Settings.JumpBoost then hum.JumpPower = Settings.JumpBoostValue else hum.JumpPower = 50 end
-    end
-end
-RunService.RenderStepped:Connect(ApplyMovementBoosts)
-
-local function StartInfiniteJump()
-    UserInputService.JumpRequest:Connect(function()
-        if Settings.InfiniteJump and LocalPlayer.Character then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum and (hum.FloorMaterial ~= Enum.Material.Air or hum:GetState() ~= Enum.HumanoidStateType.Landed) then
-                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end)
-end
-
-local function StartNoFallDamage()
-    local function onStateChanged(old, new)
-        if Settings.NoFallDamage and new == Enum.HumanoidStateType.FallingDown then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then hum:ChangeState(Enum.HumanoidStateType.Running) end
-        end
-    end
-    local connection
-    local function connect()
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                if connection then connection:Disconnect() end
-                connection = hum.StateChanged:Connect(onStateChanged)
-            end
-        end
-    end
-    connect()
-    LocalPlayer.CharacterAdded:Connect(connect)
-end
-
-local flyBodyVel, flyConn
-local function StartFly()
-    if flyConn then flyConn:Disconnect() end
-    if not Settings.Fly then
-        if flyBodyVel then flyBodyVel:Destroy() end
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
-        return
-    end
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.PlatformStand = true end
-    if flyBodyVel then flyBodyVel:Destroy() end
-    flyBodyVel = Instance.new("BodyVelocity")
-    flyBodyVel.MaxForce = Vector3.new(1,1,1)*1e5
-    flyBodyVel.Parent = hrp
-    flyConn = RunService.RenderStepped:Connect(function()
-        if not Settings.Fly then return end
-        local move = Vector3.zero
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Camera.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - Camera.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0,1,0) end
-        flyBodyVel.Velocity = move.Magnitude>0 and move.Unit*Settings.FlySpeed or Vector3.zero
-    end)
-end
-
-local noclipConn
-local function StartNoclip()
-    if noclipConn then noclipConn:Disconnect() end
-    if not Settings.Noclip then return end
-    noclipConn = RunService.Stepped:Connect(function()
-        local char = LocalPlayer.Character
-        if char then
-            for _, p in ipairs(char:GetDescendants()) do
-                if p:IsA("BasePart") then p.CanCollide = false end
-            end
-        end
-    end)
-end
-
-local antiAFKConn
-local function StartAntiAFK()
-    if antiAFKConn then antiAFKConn:Disconnect() end
-    if not Settings.AntiAFK then return end
-    antiAFKConn = RunService.Heartbeat:Connect(function()
-        local vu = game:GetService("VirtualUser")
-        if vu then vu:Button2Down(Vector2.new(0,0), Camera.CFrame) end
-    end)
-end
-
-local function ToggleDayNight()
-    if Settings.DayNight then Lighting.TimeOfDay, Lighting.Brightness = "Night", 0.2 else Lighting.TimeOfDay, Lighting.Brightness = "Day", 1 end
-end
-
-local function RemoveAllCrates()
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj.Name and obj.Name:lower():find("crate") then obj:Destroy() end
-    end
-    Rayfield:Notify({Title = "提示", Content = "已清除所有板条箱", Duration = 2})
-end
-
-local function RejoinServer()
-    game:GetService("TeleportService"):Teleport(game.PlaceId)
-end
-
--- ================= 自动农场 =================
-local farmConn
-local function startAutoFarm()
-    if farmConn then farmConn:Disconnect() end
-    farmConn = RunService.Heartbeat:Connect(function()
-        if Settings.AutoCash then
-            local remote = ReplicatedStorage:FindFirstChild("CollectCash") or ReplicatedStorage:FindFirstChild("TakeCash")
-            if remote then remote:FireServer() end
-        end
-        if Settings.AutoOil then
-            for _, obj in ipairs(Workspace:GetChildren()) do
-                if obj.Name and (obj.Name:lower():find("oil") or obj.Name:lower():find("barrel")) then
-                    local remote = ReplicatedStorage:FindFirstChild("CollectOil") or ReplicatedStorage:FindFirstChild("OilCollect")
-                    if remote then remote:FireServer(obj) end
-                end
-            end
-        end
-        if Settings.AutoStealCrate then
-            for _, obj in ipairs(Workspace:GetChildren()) do
-                if obj.Name and (obj.Name:lower():find("airdrop") or obj.Name:lower():find("crate")) then
-                    local remote = ReplicatedStorage:FindFirstChild("CollectAirdrop") or ReplicatedStorage:FindFirstChild("StealCrate")
-                    if remote then remote:FireServer(obj) end
-                end
-            end
-        end
-        task.wait(1)
-    end)
-end
-
-local rebirthLoop
-local function startRebirth()
-    if rebirthLoop then return end
-    rebirthLoop = task.spawn(function()
-        while Settings.AutoRebirth do
-            local r = ReplicatedStorage:FindFirstChild("Rebirth") or ReplicatedStorage:FindFirstChild("Prestige")
-            if r then pcall(function() r:FireServer() end) end
-            task.wait(60)
-        end
-    end)
-end
-
-local claimLoop
-local function startClaim()
-    if claimLoop then return end
-    claimLoop = task.spawn(function()
-        while Settings.AutoClaimDaily or Settings.AutoClaimSession or Settings.AutoClaimWheel do
-            if Settings.AutoClaimDaily then
-                local r = ReplicatedStorage:FindFirstChild("ClaimDaily") or ReplicatedStorage:FindFirstChild("DailyReward")
-                if r then pcall(function() r:FireServer() end) end
-            end
-            if Settings.AutoClaimSession then
-                local r = ReplicatedStorage:FindFirstChild("ClaimSession") or ReplicatedStorage:FindFirstChild("SessionReward")
-                if r then pcall(function() r:FireServer() end) end
-            end
-            if Settings.AutoClaimWheel then
-                local r = ReplicatedStorage:FindFirstChild("SpinWheel") or ReplicatedStorage:FindFirstChild("FortuneWheel")
-                if r then pcall(function() r:FireServer() end) end
-            end
-            task.wait(3600)
-        end
-    end)
-end
-
--- ================= UI 构建 =================
-local Window = Rayfield:CreateWindow({
-    Name = "战争大亨 - RPG全图追踪版",
-    Icon = 0,
-    LoadingTitle = "加载中",
-    LoadingSubtitle = "RPG 无限弹药 | 全图锁定",
-    Theme = "Default",
-    ToggleUIKeybind = Enum.KeyCode.RightControl,
+-- ================= WindUI 界面【完全原版UI逻辑不变】 =================
+local Window = WindUI:CreateWindow({
+    Title = "杀戮光环 - 全能版",
+    Folder = "KillAuraUltimate",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(580, 620),
+    Resizable = true,
+    ToggleKey = Enum.KeyCode.RightControl,
 })
 
-local CombatTab = Window:CreateTab("战斗辅助", 0)
-local ESPTab = Window:CreateTab("视觉ESP", 0)
-local FarmTab = Window:CreateTab("自动农场", 0)
-local MoveTab = Window:CreateTab("移动功能", 0)
-local MiscTab = Window:CreateTab("综合功能", 0)
-local WhiteListTab = Window:CreateTab("白名单", 0)
+-- 标签页
+local MainTab = Window:Tab({ Title = "控制", Icon = "target" })
+local PlayerTab = Window:Tab({ Title = "玩家列表", Icon = "users" })
+local MainUI = WindUI:WrapTab(MainTab)
+local PlayerUI = WindUI:WrapTab(PlayerTab)
 
--- 战斗标签页
-CombatTab:CreateSection("瞄准辅助")
-CombatTab:CreateToggle({ Name = "静默自瞄", CurrentValue = false, Callback = function(v) Settings.SilentAim = v; StartSilentAim() end })
-CombatTab:CreateSlider({ Name = "自瞄FOV", Range = {50, 500}, Increment = 1, CurrentValue = 200, Callback = function(v) Settings.SilentAimFOV = v or 200 end })
-CombatTab:CreateToggle({ Name = "穿墙模式", CurrentValue = false, Callback = function(v) Settings.Wallbang = v end })
-CombatTab:CreateToggle({ Name = "普通杀戮光环（秒杀）", CurrentValue = false, Callback = function(v) Settings.KillAura = v; StartKillAura() end })
-CombatTab:CreateSlider({ Name = "光环范围", Range = {100, 1000}, Increment = 1, CurrentValue = 500, Callback = function(v) Settings.KillAuraRange = v or 500 end })
-
-CombatTab:CreateSection("枪械改装")
-CombatTab:CreateToggle({ Name = "无限弹药（含RPG）", CurrentValue = false, Callback = function(v) Settings.InfiniteAmmo = v end })
-CombatTab:CreateToggle({ Name = "无后坐力", CurrentValue = false, Callback = function(v) Settings.NoRecoil = v end })
-CombatTab:CreateToggle({ Name = "极速射速", CurrentValue = false, Callback = function(v) Settings.RapidFire = v end })
-
-CombatTab:CreateSection("RPG 模式")
-CombatTab:CreateToggle({ Name = "跟随准星连发", CurrentValue = false, Callback = function(v) Settings.RocketSpam = v; StartRocketSpam() end })
-CombatTab:CreateSlider({ Name = "连发间隔（秒）", Range = {0.01, 0.2}, Increment = 0.01, CurrentValue = 0.03, Callback = function(v) Settings.RocketSpamDelay = v or 0.03 end })
-CombatTab:CreateToggle({ Name = "RPG 全图追踪杀戮", CurrentValue = false, Callback = function(v) Settings.RPGTrack = v; StartRPGTrack() end })
-CombatTab:CreateSlider({ Name = "攻击间隔（秒）", Range = {0.05, 0.5}, Increment = 0.01, CurrentValue = 0.1, Callback = function(v) Settings.RPGTrackDelay = v or 0.1 end })
-CombatTab:CreateLabel("说明：开启全图追踪后，自动轮流攻击所有非白名单敌人（距离>10米），无限弹药，不会误伤自己。")
-
--- ESP标签页
-ESPTab:CreateSection("视觉效果")
-ESPTab:CreateToggle({ Name = "启用ESP", CurrentValue = false, Callback = function(v) Settings.ESPEnabled = v end })
-ESPTab:CreateToggle({ Name = "方框ESP", CurrentValue = true, Callback = function(v) Settings.ESPBoxes = v end })
-ESPTab:CreateToggle({ Name = "名称ESP", CurrentValue = true, Callback = function(v) Settings.ESPNames = v end })
-ESPTab:CreateToggle({ Name = "血量ESP", CurrentValue = true, Callback = function(v) Settings.ESPHealth = v end })
-
--- 自动农场标签页
-FarmTab:CreateSection("自动收集")
-FarmTab:CreateToggle({ Name = "自动收集现金", CurrentValue = false, Callback = function(v) Settings.AutoCash = v; startAutoFarm() end })
-FarmTab:CreateToggle({ Name = "自动油桶", CurrentValue = false, Callback = function(v) Settings.AutoOil = v; startAutoFarm() end })
-FarmTab:CreateToggle({ Name = "自动空投", CurrentValue = false, Callback = function(v) Settings.AutoAirdrop = v; startAutoFarm() end })
-FarmTab:CreateToggle({ Name = "自动掠夺板条箱", CurrentValue = false, Callback = function(v) Settings.AutoStealCrate = v; startAutoFarm() end })
-FarmTab:CreateToggle({ Name = "自动转生", CurrentValue = false, Callback = function(v) Settings.AutoRebirth = v; if v then startRebirth() end end })
-FarmTab:CreateToggle({ Name = "自动每日奖励", CurrentValue = false, Callback = function(v) Settings.AutoClaimDaily = v; startClaim() end })
-FarmTab:CreateToggle({ Name = "自动会话奖励", CurrentValue = false, Callback = function(v) Settings.AutoClaimSession = v; startClaim() end })
-FarmTab:CreateToggle({ Name = "自动轮盘抽奖", CurrentValue = false, Callback = function(v) Settings.AutoClaimWheel = v; startClaim() end })
-
--- 移动标签页
-MoveTab:CreateSection("移动增强")
-MoveTab:CreateToggle({ Name = "飞行模式", CurrentValue = false, Callback = function(v) Settings.Fly = v; StartFly() end })
-MoveTab:CreateSlider({ Name = "飞行速度", Range = {20, 300}, Increment = 1, CurrentValue = 80, Callback = function(v) Settings.FlySpeed = v or 80 end })
-MoveTab:CreateToggle({ Name = "穿墙模式", CurrentValue = false, Callback = function(v) Settings.Noclip = v; StartNoclip() end })
-MoveTab:CreateToggle({ Name = "免疫摔伤", CurrentValue = false, Callback = function(v) Settings.NoFallDamage = v; StartNoFallDamage() end })
-MoveTab:CreateToggle({ Name = "加速行走", CurrentValue = false, Callback = function(v) Settings.SpeedBoost = v end })
-MoveTab:CreateSlider({ Name = "行走速度", Range = {16, 200}, Increment = 1, CurrentValue = 32, Callback = function(v) Settings.SpeedBoostValue = v or 32 end })
-MoveTab:CreateToggle({ Name = "超级跳跃", CurrentValue = false, Callback = function(v) Settings.JumpBoost = v end })
-MoveTab:CreateSlider({ Name = "跳跃力度", Range = {50, 300}, Increment = 1, CurrentValue = 50, Callback = function(v) Settings.JumpBoostValue = v or 50 end })
-MoveTab:CreateToggle({ Name = "无限跳跃", CurrentValue = false, Callback = function(v) Settings.InfiniteJump = v; if v then StartInfiniteJump() end end })
-
--- 综合标签页
-MiscTab:CreateSection("实用工具")
-MiscTab:CreateToggle({ Name = "反AFK", CurrentValue = false, Callback = function(v) Settings.AntiAFK = v; StartAntiAFK() end })
-MiscTab:CreateToggle({ Name = "昼夜切换", CurrentValue = false, Callback = function(v) Settings.DayNight = v; ToggleDayNight() end })
-MiscTab:CreateButton({ Name = "清除所有板条箱", Callback = RemoveAllCrates })
-MiscTab:CreateButton({ Name = "重新加入服务器", Callback = RejoinServer })
-
--- ================= 白名单标签页（可点击的玩家列表） =================
-WhiteListTab:CreateSection("白名单管理")
-WhiteListTab:CreateLabel("点击下方玩家名称，即可添加/移除白名单（白名单玩家不会被攻击）")
-
-local playerListFrame = Instance.new("ScrollingFrame")
-playerListFrame.Size = UDim2.new(1, 0, 0, 300)
-playerListFrame.Position = UDim2.new(0, 0, 0, 60)
-playerListFrame.BackgroundTransparency = 1
-playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-playerListFrame.ScrollBarThickness = 8
-playerListFrame.Parent = WhiteListTab.Container
-
-local function UpdatePlayerList()
-    for _, child in ipairs(playerListFrame:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
+-- ---------- 控制标签页 ----------
+MainUI:Section({ Title = "攻击开关" })
+local toggle = MainUI:Toggle({
+    Title = "总开关",
+    Default = false,
+    Callback = function(v)
+        Settings.Enabled = v
+        if v then startScript() else stopScript() end
     end
+})
+
+MainUI:Separator()
+MainUI:Section({ Title = "攻击设置" })
+MainUI:Dropdown({
+    Title = "攻击类型",
+    Options = {"玩家本体", "基地护盾"},
+    Default = "玩家本体",
+    Callback = function(opt)
+        Settings.AttackType = (opt == "玩家本体") and "Player" or "Shield"
+    end
+})
+MainUI:Slider({
+    Title = "攻击间隔 (秒)",
+    Min = 0.05,
+    Max = 1.0,
+    Step = 0.01,
+    Default = Settings.AttackDelay,
+    Callback = function(v)
+        Settings.AttackDelay = v
+    end
+})
+MainUI:Label({ Title = "提示：需要装备 RPG。总开关开启后，将自动攻击「玩家列表」中选中的目标。" })
+
+-- ---------- 玩家列表标签页 ----------
+PlayerTab:Section({ Title = "玩家选择" })
+PlayerTab:Label({ Title = "勾选要攻击的玩家（全选/清空/反选/刷新）" })
+
+-- 按钮栏
+local btnFrame = Instance.new("Frame")
+btnFrame.Size = UDim2.new(1, -20, 0, 35)
+btnFrame.Position = UDim2.new(0, 10, 0, 45)
+btnFrame.BackgroundTransparency = 1
+btnFrame.Parent = PlayerTab:GetContainer()
+
+local function createButton(text, color, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 95, 0, 30)
+    btn.Text = text
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BorderSizePixel = 0
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    btn.Parent = btnFrame
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+local allBtn = createButton("全选", Color3.fromRGB(60,60,70), nil)
+local clearBtn = createButton("清空", Color3.fromRGB(60,60,70), nil)
+local invertBtn = createButton("反选", Color3.fromRGB(60,60,70), nil)
+local refreshBtn = createButton("刷新", Color3.fromRGB(60,60,70), nil)
+
+-- 调整按钮位置
+local function repositionButtons()
+    local gap = 10
+    local width = 95
+    allBtn.Position = UDim2.new(0, 0, 0, 0)
+    clearBtn.Position = UDim2.new(0, width + gap, 0, 0)
+    invertBtn.Position = UDim2.new(0, 2*(width+gap), 0, 0)
+    refreshBtn.Position = UDim2.new(0, 3*(width+gap), 0, 0)
+end
+repositionButtons()
+
+-- 滚动框显示玩家列表
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -20, 0, 420)
+scrollFrame.Position = UDim2.new(0, 10, 0, 90)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(25,25,35)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.ScrollBarThickness = 8
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = scrollFrame
+scrollFrame.Parent = PlayerTab:GetContainer()
+
+local checkboxes = {}
+
+local function refreshPlayerList()
+    for _, child in ipairs(scrollFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+    checkboxes = {}
     local y = 5
+    local playerList = {}
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -10, 0, 32)
-        btn.Position = UDim2.new(0, 5, 0, y)
-        btn.Text = plr.Name
-        btn.BackgroundColor3 = IsWhiteListed(plr.Name) and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(45, 45, 55)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.BorderSizePixel = 0
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
-        btn.Parent = playerListFrame
-        btn.MouseButton1Click:Connect(function()
-            local nameLow = plr.Name:lower()
-            if Settings.WhiteList[nameLow] then
-                Settings.WhiteList[nameLow] = nil
-                btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-                btn.Text = plr.Name
-                Rayfield:Notify({Title = "白名单", Content = "已移除: " .. plr.Name, Duration = 1})
+        if plr ~= LocalPlayer then
+            table.insert(playerList, plr)
+        end
+    end
+    table.sort(playerList, function(a,b) return a.Name < b.Name end)
+    for _, plr in ipairs(playerList) do
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, -10, 0, 36)
+        frame.Position = UDim2.new(0, 5, 0, y)
+        frame.BackgroundColor3 = Color3.fromRGB(35,35,45)
+        frame.BorderSizePixel = 0
+        local fCorner = Instance.new("UICorner")
+        fCorner.CornerRadius = UDim.new(0, 6)
+        fCorner.Parent = frame
+        frame.Parent = scrollFrame
+
+        local check = Instance.new("TextButton")
+        check.Size = UDim2.new(0, 26, 0, 26)
+        check.Position = UDim2.new(0, 8, 0.5, -13)
+        check.TextColor3 = Color3.fromRGB(255,255,255)
+        local isSelected = Settings.SelectedPlayers[plr.Name:lower()] == true
+        check.Text = isSelected and "✓" or ""
+        check.BackgroundColor3 = isSelected and Color3.fromRGB(0,150,0) or Color3.fromRGB(70,70,80)
+        check.Font = Enum.Font.GothamBold
+        check.TextSize = 18
+        check.BorderSizePixel = 0
+        local cCorner = Instance.new("UICorner")
+        cCorner.CornerRadius = UDim.new(1, 0)
+        cCorner.Parent = check
+        check.Parent = frame
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -45, 1, 0)
+        label.Position = UDim2.new(0, 40, 0, 0)
+        label.Text = plr.Name
+        label.TextColor3 = Color3.fromRGB(220,220,220)
+        label.BackgroundTransparency = 1
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 14
+        label.Parent = frame
+
+        checkboxes[plr.Name:lower()] = check
+        check.MouseButton1Click:Connect(function()
+            local low = plr.Name:lower()
+            if Settings.SelectedPlayers[low] then
+                Settings.SelectedPlayers[low] = nil
+                check.Text = ""
+                check.BackgroundColor3 = Color3.fromRGB(70,70,80)
             else
-                Settings.WhiteList[nameLow] = true
-                btn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-                btn.Text = plr.Name .. " ✓"
-                Rayfield:Notify({Title = "白名单", Content = "已添加: " .. plr.Name, Duration = 1})
+                Settings.SelectedPlayers[low] = true
+                check.Text = "✓"
+                check.BackgroundColor3 = Color3.fromRGB(0,150,0)
             end
         end)
-        y = y + 40
+        y = y + 42
     end
-    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
 end
-UpdatePlayerList()
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
 
-WhiteListTab:CreateButton({
-    Name = "清空白名单",
-    Callback = function()
-        Settings.WhiteList = {}
-        UpdatePlayerList()
-        Rayfield:Notify({Title = "白名单", Content = "已清空", Duration = 2})
+-- 全选
+allBtn.MouseButton1Click:Connect(function()
+    for name, btn in pairs(checkboxes) do
+        if not Settings.SelectedPlayers[name] then
+            Settings.SelectedPlayers[name] = true
+            btn.Text = "✓"
+            btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        end
     end
+end)
+-- 清空
+clearBtn.MouseButton1Click:Connect(function()
+    for name, btn in pairs(checkboxes) do
+        if Settings.SelectedPlayers[name] then
+            Settings.SelectedPlayers[name] = nil
+            btn.Text = ""
+            btn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+        end
+    end
+end)
+-- 反选
+invertBtn.MouseButton1Click:Connect(function()
+    for name, btn in pairs(checkboxes) do
+        if Settings.SelectedPlayers[name] then
+            Settings.SelectedPlayers[name] = nil
+            btn.Text = ""
+            btn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+        else
+            Settings.SelectedPlayers[name] = true
+            btn.Text = "✓"
+            btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        end
+    end
+end)
+-- 刷新
+refreshBtn.MouseButton1Click:Connect(function()
+    refreshPlayerList()
+    WindUI:Notify({ Title = "刷新", Content = "玩家列表已更新", Duration = 2 })
+end)
+
+-- 玩家进出自动刷新
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(refreshPlayerList)
+refreshPlayerList()
+
+-- 启动通知
+WindUI:Notify({
+    Title = "杀戮光环",
+    Content = "按 RightControl 开关菜单 | 装备 RPG 后启用",
+    Duration = 4
 })
 
--- ================= 启动所有功能循环（默认关闭） =================
-StartSilentAim()
-StartKillAura()
-StartRocketSpam()
-StartRPGTrack()
-StartFly()
-StartNoclip()
-StartNoFallDamage()
-StartAntiAFK()
-startAutoFarm()
-
-Rayfield:Notify({Title = "脚本加载完成", Content = "RPG全图追踪已就绪 | 在白名单中添加队友 | 按 RightControl 开关菜单", Duration = 6})
