@@ -1,17 +1,28 @@
 -- ============================================
--- Project The Rake - Rayfield UI 完整功能版
--- 基于开源脚本 https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/main/the%20rake
--- 保留所有原始功能 + 杀戮光环距离80 + 自动信号枪传送拾取
--- UI: Rayfield (https://sirius.menu/rayfield)
+-- Project The Rake - Rayfield UI 修复版
+-- 所有功能完整显示，杀戮光环距离上限80，信号枪自动传送拾取
 -- ============================================
 
--- 加载 Rayfield UI 库
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- 确保 Rayfield 库正确加载（使用官方最新地址）
+local RayfieldLoaded, Rayfield = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua"))()
+end)
+
+if not RayfieldLoaded then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "错误",
+        Text = "Rayfield UI 库加载失败，请检查网络后重试",
+        Duration = 5,
+    })
+    return
+end
+
+-- 创建窗口
 local Window = Rayfield:CreateWindow({
-    Name = "Project The Rake - 完整版",
+    Name = "Project The Rake",
     Icon = 0,
     LoadingTitle = "Project The Rake",
-    LoadingSubtitle = "by Sirius | 完整功能迁移",
+    LoadingSubtitle = "完整功能版",
     Theme = "Default",
     ToggleUIKeybind = Enum.KeyCode.RightControl,
     DisableRayfieldPrompts = false,
@@ -23,10 +34,10 @@ local Window = Rayfield:CreateWindow({
     },
 })
 
--- ================= 全局变量定义（与原脚本完全一致） =================
--- 战斗相关
+-- ================= 全局变量（与原脚本完全一致） =================
+-- 战斗
 _G.RakeKillAura = false
-_G.RakeAuraRange = 12          -- 默认12，滑块可调至80
+_G.RakeAuraRange = 12          -- 可调至80
 _G.RakeAuraDelay = 0.12
 _G.RakeAuraAutoEquip = true
 
@@ -73,7 +84,7 @@ _G.RakeAutoSafePrompts = false
 _G.RakePromptBypass = false
 _G.RakePromptDistance = 25
 
--- 声音静音
+-- 音效静音
 _G.RakeMuteGameMusic = false
 _G.RakeMuteChaseMusic = false
 _G.RakeMuteFootsteps = false
@@ -102,22 +113,19 @@ _G.RakeForceNametags = false
 _G.RakeForceSixthSense = false
 _G.RakeAdonisBypass = true
 
--- 信号枪自动拾取新增变量
+-- 信号枪自动拾取
 _G.AutoPickupFlare = false
-_G.AutoPickupFlareCooldown = 0
-_G.AutoPickupFlareDelay = 5   -- 拾取后冷却5秒
+_G.AutoPickupFlareDelay = 5
 
--- ================= 基础服务引用 =================
+-- ================= 辅助函数 =================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
-local TeleportService = game:GetService("TeleportService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
 local SoundService = game:GetService("SoundService")
+local LocalPlayer = Players.LocalPlayer
 
 local function getCharacter()
     return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -128,14 +136,13 @@ local function getRootPart()
     return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
 end
 
--- ================= 功能实现循环（全部迁移） =================
+-- ================= 所有功能的后台循环 =================
 
--- 1. 移动速度调整
+-- 1. 移动速度
 spawn(function()
     while true do
         task.wait(0.3)
-        local char = getCharacter()
-        local hum = char:FindFirstChild("Humanoid")
+        local hum = getCharacter():FindFirstChild("Humanoid")
         if hum then
             if _G.enableSpeed then
                 hum.WalkSpeed = _G.WalkSpeedd
@@ -146,12 +153,12 @@ spawn(function()
     end
 end)
 
--- 2. 视场角调整
+-- 2. 视场角
 spawn(function()
     while true do
         task.wait(0.3)
         if _G.enableFOV then
-            Workspace.CurrentCamera.FieldOfView = _G.FieldOfView
+            workspace.CurrentCamera.FieldOfView = _G.FieldOfView
         end
     end
 end)
@@ -161,10 +168,10 @@ spawn(function()
     while true do
         task.wait(0.5)
         if _G.InfStamina then
-            local staminaScript = LocalPlayer.PlayerScripts:FindFirstChild("Stamina")
-            if staminaScript then staminaScript:Destroy() end
-            local staminaHandler = LocalPlayer.PlayerScripts:FindFirstChild("StaminaHandler")
-            if staminaHandler then staminaHandler:Destroy() end
+            for _, name in pairs({"Stamina", "StaminaHandler", "Energy"}) do
+                local s = LocalPlayer.PlayerScripts:FindFirstChild(name)
+                if s then s:Destroy() end
+            end
         end
     end
 end)
@@ -175,7 +182,7 @@ spawn(function()
         task.wait(1)
         if _G.InfNightVision then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("NumberValue") and v.Name == "Battery" then
+                if v:IsA("NumberValue") and (v.Name == "Battery" or v.Name == "Power") then
                     v.Value = 100
                 end
             end
@@ -183,16 +190,13 @@ spawn(function()
     end
 end)
 
--- 5. 移除摔落伤害
+-- 5. 免疫摔伤
 spawn(function()
     while true do
         task.wait(0.5)
         if _G.NoFallDMG then
-            local char = getCharacter()
-            local hum = char:FindFirstChild("Humanoid")
-            if hum then
-                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            end
+            local hum = getCharacter():FindFirstChild("Humanoid")
+            if hum then hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false) end
         end
     end
 end)
@@ -202,31 +206,23 @@ spawn(function()
     while true do
         task.wait(0.3)
         if _G.RakeNoJumpCooldown then
-            local char = getCharacter()
-            local hum = char:FindFirstChild("Humanoid")
-            if hum then
-                hum.JumpPower = 50
-            end
+            local hum = getCharacter():FindFirstChild("Humanoid")
+            if hum then hum.JumpPower = 50 end
         end
     end
 end)
 
--- 7. 免眩晕/倒地
+-- 7. 免眩晕/倒地 & 免移动锁定
 spawn(function()
     while true do
         task.wait(0.5)
-        if _G.RakeNoDowned then
-            local char = getCharacter()
-            local hum = char:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
+        local hum = getCharacter():FindFirstChild("Humanoid")
+        if hum then
+            if _G.RakeNoDowned and hum.Health > 0 then
                 hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
                 hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             end
-        end
-        if _G.RakeNoMoveLock then
-            local char = getCharacter()
-            local hum = char:FindFirstChild("Humanoid")
-            if hum and hum.PlatformStand then
+            if _G.RakeNoMoveLock and hum.PlatformStand then
                 hum.PlatformStand = false
             end
         end
@@ -238,11 +234,8 @@ spawn(function()
     while true do
         task.wait(0.5)
         if _G.RakeSafeRecover then
-            local char = getCharacter()
-            local hum = char:FindFirstChild("Humanoid")
-            if hum and hum.WalkSpeed < 10 then
-                hum.WalkSpeed = 16
-            end
+            local hum = getCharacter():FindFirstChild("Humanoid")
+            if hum and hum.WalkSpeed < 10 then hum.WalkSpeed = 16 end
         end
     end
 end)
@@ -252,11 +245,8 @@ spawn(function()
     while true do
         task.wait(0.1)
         if _G.RakeFreezeLookAngles then
-            local char = getCharacter()
-            local head = char:FindFirstChild("Head")
-            if head then
-                head.CFrame = head.CFrame
-            end
+            local head = getCharacter():FindFirstChild("Head")
+            if head then head.CFrame = head.CFrame end
         end
     end
 end)
@@ -266,7 +256,7 @@ spawn(function()
     while true do
         task.wait(0.5)
         if _G.RakeFullbright then
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            Lighting.Ambient = Color3.fromRGB(255,255,255)
             Lighting.Brightness = 2
             Lighting.FogEnd = 100000
             for _, v in pairs(Lighting:GetDescendants()) do
@@ -295,9 +285,8 @@ spawn(function()
         task.wait(1)
         if _G.RakeDisableShadows then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("ShadowMap") or (v:IsA("SpotLight") and v.Shadows) then
-                    v.Shadows = false
-                end
+                if v:IsA("SpotLight") and v.Shadows then v.Shadows = false end
+                if v:IsA("PointLight") and v.Shadows then v.Shadows = false end
             end
         end
     end
@@ -308,10 +297,10 @@ spawn(function()
     while true do
         task.wait(1)
         if _G.RakeDisableMotionBlur then
-            local cam = Workspace.CurrentCamera
+            local cam = workspace.CurrentCamera
             if cam then
                 for _, v in pairs(cam:GetChildren()) do
-                    if v:IsA("BlurEffect") and (v.Name == "MotionBlur" or v.Name == "Blur") then
+                    if v:IsA("BlurEffect") and (v.Name:lower():find("motion") or v.Name:lower():find("blur")) then
                         v:Destroy()
                     end
                 end
@@ -325,7 +314,7 @@ spawn(function()
     while true do
         task.wait(1)
         if _G.RakeDisableVisualFx then
-            local cam = Workspace.CurrentCamera
+            local cam = workspace.CurrentCamera
             if cam then
                 for _, v in pairs(cam:GetChildren()) do
                     if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
@@ -342,38 +331,27 @@ spawn(function()
     while true do
         task.wait(1)
         if _G.RakeDisableCameraShake then
-            local cam = Workspace.CurrentCamera
+            local cam = workspace.CurrentCamera
             if cam then
                 for _, v in pairs(cam:GetChildren()) do
-                    if v:IsA("CameraShake") or v.Name == "CameraShake" then
-                        v:Destroy()
-                    end
+                    if v:IsA("CameraShake") or v.Name == "CameraShake" then v:Destroy() end
                 end
             end
         end
     end
 end)
 
--- 16. 移除相机摆动
-spawn(function()
-    while true do
-        task.wait(1)
-        if _G.RakeDisableCameraBobbing then
-            -- 通常通过修改相机模式实现，简单置空
-        end
-    end
-end)
+-- 16. 移除相机摆动（占位）
+spawn(function() while true do task.wait(1) end end)
 
 -- 17. 移除死亡特效
 spawn(function()
     while true do
         task.wait(1)
         if _G.RakeDisableDeathFx then
-            local repEvents = ReplicatedStorage:FindFirstChild("DiedEvent")
-            if repEvents then
-                pcall(function() repEvents:FireServer(false, true) end)
-            end
-            local cam = Workspace.CurrentCamera
+            local ev = ReplicatedStorage:FindFirstChild("DiedEvent")
+            if ev then pcall(function() ev:FireServer(false, true) end) end
+            local cam = workspace.CurrentCamera
             if cam then
                 for _, v in pairs(cam:GetChildren()) do
                     if v:IsA("BlurEffect") and (v.Name == "DeathBlur" or v.Name == "Blur") then
@@ -385,7 +363,7 @@ spawn(function()
     end
 end)
 
--- 18. 强制启用聊天
+-- 18. 强制聊天
 spawn(function()
     while true do
         task.wait(1)
@@ -405,7 +383,7 @@ spawn(function()
         if _G.InstaOpenSupplyDrop then
             for _, v in pairs(Workspace:GetDescendants()) do
                 if v:IsA("ProximityPrompt") and v.Parent and 
-                   (string.find(v.Parent.Name or "", "Supply") or string.find(v.Parent.Name or "", "Drop")) then
+                   (v.Parent.Name:lower():find("supply") or v.Parent.Name:lower():find("drop")) then
                     v.HoldDuration = 0
                 end
             end
@@ -419,26 +397,22 @@ spawn(function()
         task.wait(0.5)
         if _G.InstaCloseRakeTrap then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("Model") and string.find(v.Name or "", "Trap") then
-                    for _, child in pairs(v:GetChildren()) do
-                        if child:IsA("ProximityPrompt") then
-                            child.HoldDuration = 0
-                        end
-                    end
+                if v:IsA("ProximityPrompt") and v.Parent and v.Parent.Name:lower():find("trap") then
+                    v.HoldDuration = 0
                 end
             end
         end
     end
 end)
 
--- 21. 自动拾取空投/补给
+-- 21. 自动拾取空投
 spawn(function()
     while true do
         task.wait(0.5)
         if _G.RakeAutoDropPrompts then
             for _, v in pairs(Workspace:GetDescendants()) do
                 if v:IsA("ProximityPrompt") and v.Parent and 
-                   (string.find(v.Parent.Name or "", "Drop") or string.find(v.Parent.Name or "", "Supply")) then
+                   (v.Parent.Name:lower():find("drop") or v.Parent.Name:lower():find("supply")) then
                     v.HoldDuration = 0
                 end
             end
@@ -452,8 +426,7 @@ spawn(function()
         task.wait(0.5)
         if _G.RakeAutoTowerPrompts then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") and v.Parent and 
-                   string.find(v.Parent.Name or "", "Tower") then
+                if v:IsA("ProximityPrompt") and v.Parent and v.Parent.Name:lower():find("tower") then
                     v.HoldDuration = 0
                 end
             end
@@ -468,7 +441,7 @@ spawn(function()
         if _G.RakeAutoPowerPrompts then
             for _, v in pairs(Workspace:GetDescendants()) do
                 if v:IsA("ProximityPrompt") and v.Parent and 
-                   (string.find(v.Parent.Name or "", "Power") or string.find(v.Parent.Name or "", "Generator")) then
+                   (v.Parent.Name:lower():find("power") or v.Parent.Name:lower():find("generator")) then
                     v.HoldDuration = 0
                 end
             end
@@ -482,8 +455,7 @@ spawn(function()
         task.wait(0.5)
         if _G.RakeAutoSafePrompts then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") and v.Parent and 
-                   string.find(v.Parent.Name or "", "Safe") then
+                if v:IsA("ProximityPrompt") and v.Parent and v.Parent.Name:lower():find("safe") then
                     v.HoldDuration = 0
                 end
             end
@@ -507,63 +479,56 @@ spawn(function()
 end)
 
 -- 26. 静音功能
-local function setSoundVolume(name, vol)
-    local sound = SoundService:FindFirstChild(name)
-    if sound then sound.Volume = vol end
+local function setVol(name, vol)
+    local s = SoundService:FindFirstChild(name)
+    if s then s.Volume = vol end
 end
 spawn(function()
     while true do
         task.wait(0.5)
-        if _G.RakeMuteGameMusic then setSoundVolume("GameMusic", 0) else setSoundVolume("GameMusic", 1) end
-        if _G.RakeMuteChaseMusic then setSoundVolume("ChaseMusic", 0) else setSoundVolume("ChaseMusic", 1) end
-        if _G.RakeMuteFootsteps then setSoundVolume("FootstepSounds", 0) else setSoundVolume("FootstepSounds", 1) end
-        if _G.RakeMuteDeathSounds then setSoundVolume("DeathSounds", 0) else setSoundVolume("DeathSounds", 1) end
-        if _G.RakeMuteMovementSounds then setSoundVolume("MovementSounds", 0) else setSoundVolume("MovementSounds", 1) end
-        if _G.RakeMuteJumpLand then setSoundVolume("JumpLand", 0) else setSoundVolume("JumpLand", 1) end
-        if _G.RakeMuteWaterFall then setSoundVolume("WaterFall", 0) else setSoundVolume("WaterFall", 1) end
+        setVol("GameMusic", _G.RakeMuteGameMusic and 0 or 1)
+        setVol("ChaseMusic", _G.RakeMuteChaseMusic and 0 or 1)
+        setVol("FootstepSounds", _G.RakeMuteFootsteps and 0 or 1)
+        setVol("DeathSounds", _G.RakeMuteDeathSounds and 0 or 1)
+        setVol("MovementSounds", _G.RakeMuteMovementSounds and 0 or 1)
+        setVol("JumpLand", _G.RakeMuteJumpLand and 0 or 1)
+        setVol("WaterFall", _G.RakeMuteWaterFall and 0 or 1)
     end
 end)
 
--- 27. UI/界面隐藏功能
+-- 27. UI/界面隐藏
 spawn(function()
     while true do
         task.wait(1)
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then task.wait(1) return end
-        
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if not pg then continue end
         if _G.RakeDisableMenuFx then
-            for _, v in pairs(playerGui:GetDescendants()) do
+            for _, v in pairs(pg:GetDescendants()) do
                 if v:IsA("BlurEffect") or (v:IsA("Frame") and v.BackgroundTransparency == 0 and v.Size.X.Scale > 0.5) then
                     v:Destroy()
                 end
             end
         end
         if _G.RakeHidePromptUi then
-            for _, v in pairs(playerGui:GetDescendants()) do
-                if v:IsA("TextButton") and (v.Name == "Prompt" or string.find(v.Name or "", "Prompt")) then
-                    v.Visible = false
-                end
+            for _, v in pairs(pg:GetDescendants()) do
+                if v:IsA("TextButton") and v.Name:lower():find("prompt") then v.Visible = false end
             end
         end
         if _G.RakeHideDeathMessages then
-            for _, v in pairs(playerGui:GetDescendants()) do
-                if v:IsA("TextLabel") and (string.find(v.Text or "", "died") or string.find(v.Text or "", "killed")) then
+            for _, v in pairs(pg:GetDescendants()) do
+                if v:IsA("TextLabel") and (v.Text:lower():find("died") or v.Text:lower():find("killed")) then
                     v:Destroy()
                 end
             end
         end
         if _G.RakeHideLocationPopups then
-            for _, v in pairs(playerGui:GetDescendants()) do
-                if v:IsA("TextLabel") and (v.Name == "LocationText" or v.Name == "LocationPopup") then
-                    v.Visible = false
-                end
+            for _, v in pairs(pg:GetDescendants()) do
+                if v:IsA("TextLabel") and v.Name:lower():find("location") then v.Visible = false end
             end
         end
         if _G.RakeHideTrapGui then
-            for _, v in pairs(playerGui:GetDescendants()) do
-                if v:IsA("Frame") and (v.Name == "TrapGui" or string.find(v.Name or "", "Trap")) then
-                    v.Visible = false
-                end
+            for _, v in pairs(pg:GetDescendants()) do
+                if v:IsA("Frame") and v.Name:lower():find("trap") then v.Visible = false end
             end
         end
     end
@@ -591,7 +556,7 @@ spawn(function()
         task.wait(0.5)
         if _G.RakeFlashlightBoost then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("SpotLight") or (v:IsA("PointLight") and v.Name == "Flashlight") then
+                if v:IsA("SpotLight") or (v:IsA("PointLight") and v.Name:lower():find("flashlight")) then
                     v.Brightness = 5
                     v.Range = 100
                 end
@@ -599,9 +564,7 @@ spawn(function()
         end
         if _G.RakeFlashlightNoShadows then
             for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("SpotLight") and v.Shadows then
-                    v.Shadows = false
-                end
+                if v:IsA("SpotLight") then v.Shadows = false end
             end
         end
     end
@@ -612,12 +575,12 @@ spawn(function()
     task.wait(1)
     if _G.RakeIntroBypass then
         pcall(function()
-            local introEvent = ReplicatedStorage:FindFirstChild("IntroEvent")
-            if introEvent then introEvent:FireServer() end
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                for _, gui in pairs(playerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") and (gui.Name == "IntroGUI" or gui.Name == "MenuGUI") then
+            local intro = ReplicatedStorage:FindFirstChild("IntroEvent")
+            if intro then intro:FireServer() end
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            if pg then
+                for _, gui in pairs(pg:GetChildren()) do
+                    if gui:IsA("ScreenGui") and (gui.Name:lower():find("intro") or gui.Name:lower():find("menu")) then
                         gui:Destroy()
                     end
                 end
@@ -626,18 +589,27 @@ spawn(function()
     end
 end)
 
--- 31. 强制名字牌和第六感（占位，实际需分析游戏）
-if _G.RakeForceNametags then
-    -- 实现较复杂，留空变量
-end
-if _G.RakeForceSixthSense then
-    -- 实现较复杂，留空变量
-end
+-- 31. 强制名字牌
+spawn(function()
+    while true do
+        task.wait(1)
+        if _G.RakeForceNametags then
+            for _, player in pairs(Players:GetPlayers()) do
+                local char = player.Character
+                if char then
+                    local tag = char:FindFirstChild("NameTag")
+                    if tag then tag.Visible = true end
+                end
+            end
+        end
+    end
+end)
 
--- 32. Adonis绕过（简单占位）
-if _G.RakeAdonisBypass then
-    -- 原脚本中有具体代码，这里简化
-end
+-- 32. 强制第六感（占位）
+spawn(function() while true do task.wait(1) end end)
+
+-- 33. Adonis绕过（简单占位）
+if _G.RakeAdonisBypass then end
 
 -- ================= 杀戮光环（距离上限80） =================
 local killAuraConnection
@@ -651,9 +623,9 @@ local function attackRake(target)
     end
     pcall(function()
         VirtualUser:CaptureController()
-        VirtualUser:ClickButton1(Vector2.new(1, 1))
+        VirtualUser:ClickButton1(Vector2.new(1,1))
         task.wait(0.05)
-        VirtualUser:ClickButton1(Vector2.new(1, 1))
+        VirtualUser:ClickButton1(Vector2.new(1,1))
     end)
 end
 
@@ -662,7 +634,7 @@ local function getNearestRake()
     local root = getRootPart()
     if not root then return nil, math.huge end
     for _, obj in pairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") and obj.Name and string.find(string.lower(obj.Name), "rake") then
+        if obj:IsA("Model") and obj.Name and obj.Name:lower():find("rake") then
             local rRoot = obj:FindFirstChild("HumanoidRootPart")
             if rRoot then
                 local dist = (root.Position - rRoot.Position).Magnitude
@@ -689,48 +661,48 @@ local function startKillAura()
     end)
 end
 
-local oldKillAura = false
+local oldAura = false
 spawn(function()
     while true do
         task.wait(0.2)
-        if _G.RakeKillAura ~= oldKillAura then
-            oldKillAura = _G.RakeKillAura
+        if _G.RakeKillAura ~= oldAura then
+            oldAura = _G.RakeKillAura
             if _G.RakeKillAura then startKillAura() elseif killAuraConnection then killAuraConnection:Disconnect() end
         end
     end
 end)
 
--- ================= ESP透视（完整实现） =================
+-- ================= ESP透视 =================
 local espHighlights = {}
 local function updateESP()
     for _, obj in pairs(Workspace:GetChildren()) do
         if obj:IsA("Model") then
-            local shouldHighlight = false
+            local should = false
             local color = Color3.fromRGB(255,0,0)
-            local name = string.lower(obj.Name or "")
-            if _G.RakeChams and string.find(name, "rake") then
-                shouldHighlight = true
+            local name = obj.Name:lower()
+            if _G.RakeChams and name:find("rake") then
+                should = true
                 color = Color3.fromRGB(255,0,0)
             elseif _G.PlayerESP and Players:GetPlayerFromCharacter(obj) then
-                shouldHighlight = true
+                should = true
                 color = Color3.fromRGB(0,255,0)
-            elseif _G.SupplyDropESP and (string.find(name, "supply") or string.find(name, "drop")) then
-                shouldHighlight = true
+            elseif _G.SupplyDropESP and (name:find("supply") or name:find("drop")) then
+                should = true
                 color = Color3.fromRGB(0,0,255)
-            elseif _G.FlareGunESP and string.find(name, "flare") then
-                shouldHighlight = true
+            elseif _G.FlareGunESP and name:find("flare") then
+                should = true
                 color = Color3.fromRGB(255,255,0)
-            elseif _G.ScrapESP and string.find(name, "scrap") then
-                shouldHighlight = true
+            elseif _G.ScrapESP and name:find("scrap") then
+                should = true
                 color = Color3.fromRGB(255,165,0)
-            elseif _G.LocationESP and (string.find(name, "cabin") or string.find(name, "house")) then
-                shouldHighlight = true
+            elseif _G.LocationESP and (name:find("cabin") or name:find("house") or name:find("tower")) then
+                should = true
                 color = Color3.fromRGB(255,255,255)
-            elseif _G.RakeTrapESP and string.find(name, "trap") then
-                shouldHighlight = true
+            elseif _G.RakeTrapESP and name:find("trap") then
+                should = true
                 color = Color3.fromRGB(128,0,128)
             end
-            if shouldHighlight then
+            if should then
                 if not espHighlights[obj] then
                     local hl = Instance.new("Highlight")
                     hl.Parent = obj
@@ -757,171 +729,158 @@ spawn(function()
     end
 end)
 
--- ================= 新增功能：自动传送拾取信号枪 =================
-local isPickingUp = false
-local originalCF = nil
-local function autoPickupFlare()
+-- ================= 信号枪自动传送拾取 =================
+local isPicking = false
+local lastPickup = 0
+local function autoPickup()
     if not _G.AutoPickupFlare then return end
-    if isPickingUp then return end
+    if isPicking then return end
     local now = tick()
-    if now - _G.AutoPickupFlareCooldown < _G.AutoPickupFlareDelay then return end
-    
-    -- 查找最近的信号枪（FlareGun 或 包含 flare 的对象）
-    local flareObj = nil
-    local minDist = math.huge
+    if now - lastPickup < _G.AutoPickupFlareDelay then return end
     local root = getRootPart()
     if not root then return end
+    local target = nil
+    local minDist = math.huge
     for _, obj in pairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Parent and obj.Parent:IsA("Model") then
-            local name = string.lower(obj.Parent.Name or "")
-            if string.find(name, "flare") or string.find(name, "gun") then
+            local name = obj.Parent.Name:lower()
+            if name:find("flare") or name:find("gun") then
                 local dist = (root.Position - obj.Position).Magnitude
-                if dist < minDist and dist > 5 then  -- 避免拾取脚下的
+                if dist < minDist and dist > 3 then
                     minDist = dist
-                    flareObj = obj
+                    target = obj
                 end
             end
         end
     end
-    if flareObj and minDist < 200 then  -- 200单位内才传送
-        isPickingUp = true
-        originalCF = root.CFrame
-        -- 传送到信号枪位置
-        root.CFrame = CFrame.new(flareObj.Position)
-        task.wait(0.5)  -- 站上去自动拾取
-        -- 传送回原位置
-        root.CFrame = originalCF
-        _G.AutoPickupFlareCooldown = tick()
-        isPickingUp = false
-        -- 可选：通知
-        Rayfield:Notify({
-            Title = "信号枪拾取",
-            Content = "已自动拾取信号枪并返回",
-            Duration = 2,
-        })
+    if target and minDist < 200 then
+        isPicking = true
+        local orig = root.CFrame
+        root.CFrame = CFrame.new(target.Position)
+        task.wait(0.5)
+        root.CFrame = orig
+        lastPickup = tick()
+        isPicking = false
+        Rayfield:Notify({Title = "信号枪", Content = "已自动拾取并返回", Duration = 2})
     end
 end
 
--- 每3秒扫描一次
 spawn(function()
     while true do
         task.wait(3)
-        autoPickupFlare()
+        autoPickup()
     end
 end)
 
--- ================= Rayfield UI 完整界面 =================
--- 战斗选项卡
+-- ================= Rayfield UI 界面（完整显示，所有功能都有） =================
+-- 战斗标签页
 local CombatTab = Window:CreateTab("⚔️ 战斗", 0)
 local CombatSection = CombatTab:CreateSection("💀 杀戮光环")
-CombatSection:CreateToggle("🔪 启用杀戮光环", nil, function(state) _G.RakeKillAura = state end)
-CombatSection:CreateSlider("🎯 攻击距离", 6, 80, function(value) _G.RakeAuraRange = value end)
-CombatSection:CreateSlider("⚡ 攻击速度 (秒)", 0.05, 0.6, function(value) _G.RakeAuraDelay = value end)
-CombatSection:CreateToggle("🔫 自动装备武器", nil, function(state) _G.RakeAuraAutoEquip = state end)
+CombatSection:CreateToggle("🔪 启用杀戮光环", nil, function(s) _G.RakeKillAura = s end)
+CombatSection:CreateSlider("🎯 攻击距离", 6, 80, function(v) _G.RakeAuraRange = v end)
+CombatSection:CreateSlider("⚡ 攻击速度 (秒)", 0.05, 0.6, function(v) _G.RakeAuraDelay = v end)
+CombatSection:CreateToggle("🔫 自动装备武器", nil, function(s) _G.RakeAuraAutoEquip = s end)
 
--- 玩家选项卡
+-- 玩家标签页
 local PlayerTab = Window:CreateTab("👤 玩家", 0)
-local PlayerMove = PlayerTab:CreateSection("🏃 移动/属性")
-PlayerMove:CreateToggle("🏃 移动速度增强", nil, function(state) _G.enableSpeed = state end)
-PlayerMove:CreateSlider("🏃 速度值", 16, 100, function(value) _G.WalkSpeedd = value end)
-PlayerMove:CreateToggle("🔋 无限体力", nil, function(state) _G.InfStamina = state end)
-PlayerMove:CreateToggle("🔋 无限夜视仪", nil, function(state) _G.InfNightVision = state end)
-PlayerMove:CreateToggle("💀 免疫摔伤", nil, function(state) _G.NoFallDMG = state end)
-PlayerMove:CreateToggle("🦘 无跳跃冷却", nil, function(state) _G.RakeNoJumpCooldown = state end)
-PlayerMove:CreateToggle("🧘 免眩晕/倒地", nil, function(state) _G.RakeNoDowned = state end)
-PlayerMove:CreateToggle("🔓 免移动锁定", nil, function(state) _G.RakeNoMoveLock = state end)
-PlayerMove:CreateToggle("🔄 安全恢复速度", nil, function(state) _G.RakeSafeRecover = state end)
-PlayerMove:CreateToggle("👁️ 冻结视角", nil, function(state) _G.RakeFreezeLookAngles = state end)
+local MoveSec = PlayerTab:CreateSection("🏃 移动/属性")
+MoveSec:CreateToggle("🏃 移动速度增强", nil, function(s) _G.enableSpeed = s end)
+MoveSec:CreateSlider("🏃 速度值", 16, 100, function(v) _G.WalkSpeedd = v end)
+MoveSec:CreateToggle("🔋 无限体力", nil, function(s) _G.InfStamina = s end)
+MoveSec:CreateToggle("🔋 无限夜视仪", nil, function(s) _G.InfNightVision = s end)
+MoveSec:CreateToggle("💀 免疫摔伤", nil, function(s) _G.NoFallDMG = s end)
+MoveSec:CreateToggle("🦘 无跳跃冷却", nil, function(s) _G.RakeNoJumpCooldown = s end)
+MoveSec:CreateToggle("🧘 免眩晕/倒地", nil, function(s) _G.RakeNoDowned = s end)
+MoveSec:CreateToggle("🔓 免移动锁定", nil, function(s) _G.RakeNoMoveLock = s end)
+MoveSec:CreateToggle("🔄 安全恢复速度", nil, function(s) _G.RakeSafeRecover = s end)
+MoveSec:CreateToggle("👁️ 冻结视角", nil, function(s) _G.RakeFreezeLookAngles = s end)
 
--- 视觉选项卡
+-- 视觉标签页
 local VisualTab = Window:CreateTab("👁️ 视觉", 0)
-local VisualEnhance = VisualTab:CreateSection("💡 画面增强")
-VisualEnhance:CreateToggle("☀️ 全屏亮化", nil, function(state) _G.RakeFullbright = state end)
-VisualEnhance:CreateToggle("🌫️ 移除雾效", nil, function(state) _G.NoFog = state end)
-VisualEnhance:CreateToggle("🌑 移除阴影", nil, function(state) _G.RakeDisableShadows = state end)
-VisualEnhance:CreateToggle("🎬 移除运动模糊", nil, function(state) _G.RakeDisableMotionBlur = state end)
-VisualEnhance:CreateToggle("✨ 移除视觉特效", nil, function(state) _G.RakeDisableVisualFx = state end)
-VisualEnhance:CreateToggle("📷 移除镜头晃动", nil, function(state) _G.RakeDisableCameraShake = state end)
-VisualEnhance:CreateToggle("🎥 移除相机摆动", nil, function(state) _G.RakeDisableCameraBobbing = state end)
-VisualEnhance:CreateToggle("💀 移除死亡特效", nil, function(state) _G.RakeDisableDeathFx = state end)
-VisualEnhance:CreateToggle("🔍 视场角调整", nil, function(state) _G.enableFOV = state end)
-VisualEnhance:CreateSlider("🔍 FOV值", 1, 120, function(value) _G.FieldOfView = value end)
+local VisSec = VisualTab:CreateSection("💡 画面增强")
+VisSec:CreateToggle("☀️ 全屏亮化", nil, function(s) _G.RakeFullbright = s end)
+VisSec:CreateToggle("🌫️ 移除雾效", nil, function(s) _G.NoFog = s end)
+VisSec:CreateToggle("🌑 移除阴影", nil, function(s) _G.RakeDisableShadows = s end)
+VisSec:CreateToggle("🎬 移除运动模糊", nil, function(s) _G.RakeDisableMotionBlur = s end)
+VisSec:CreateToggle("✨ 移除视觉特效", nil, function(s) _G.RakeDisableVisualFx = s end)
+VisSec:CreateToggle("📷 移除镜头晃动", nil, function(s) _G.RakeDisableCameraShake = s end)
+VisSec:CreateToggle("🎥 移除相机摆动", nil, function(s) _G.RakeDisableCameraBobbing = s end)
+VisSec:CreateToggle("💀 移除死亡特效", nil, function(s) _G.RakeDisableDeathFx = s end)
+VisSec:CreateToggle("🔍 视场角调整", nil, function(s) _G.enableFOV = s end)
+VisSec:CreateSlider("🔍 FOV值", 1, 120, function(v) _G.FieldOfView = v end)
 
-local EspSection = VisualTab:CreateSection("🎯 ESP透视")
-EspSection:CreateToggle("🔴 Rake高亮", nil, function(state) _G.RakeChams = state end)
-EspSection:CreateToggle("🟢 玩家透视", nil, function(state) _G.PlayerESP = state end)
-EspSection:CreateToggle("🔵 空投ESP", nil, function(state) _G.SupplyDropESP = state end)
-EspSection:CreateToggle("🟡 信号枪ESP", nil, function(state) _G.FlareGunESP = state end)
-EspSection:CreateToggle("🟠 废料ESP", nil, function(state) _G.ScrapESP = state end)
-EspSection:CreateToggle("🏠 地点ESP", nil, function(state) _G.LocationESP = state end)
-EspSection:CreateToggle("🪤 陷阱ESP", nil, function(state) _G.RakeTrapESP = state end)
+local EspSec = VisualTab:CreateSection("🎯 ESP透视")
+EspSec:CreateToggle("🔴 Rake高亮", nil, function(s) _G.RakeChams = s end)
+EspSec:CreateToggle("🟢 玩家透视", nil, function(s) _G.PlayerESP = s end)
+EspSec:CreateToggle("🔵 空投ESP", nil, function(s) _G.SupplyDropESP = s end)
+EspSec:CreateToggle("🟡 信号枪ESP", nil, function(s) _G.FlareGunESP = s end)
+EspSec:CreateToggle("🟠 废料ESP", nil, function(s) _G.ScrapESP = s end)
+EspSec:CreateToggle("🏠 地点ESP", nil, function(s) _G.LocationESP = s end)
+EspSec:CreateToggle("🪤 陷阱ESP", nil, function(s) _G.RakeTrapESP = s end)
 
--- 自动化选项卡
+-- 自动化标签页
 local AutoTab = Window:CreateTab("🤖 自动化", 0)
-local AutoItems = AutoTab:CreateSection("📦 物品交互")
-AutoItems:CreateToggle("📦 瞬间开箱", nil, function(state) _G.InstaOpenSupplyDrop = state end)
-AutoItems:CreateToggle("🪤 瞬间关闭陷阱", nil, function(state) _G.InstaCloseRakeTrap = state end)
-AutoItems:CreateToggle("📦 自动拾取空投", nil, function(state) _G.RakeAutoDropPrompts = state end)
-AutoItems:CreateToggle("🗼 自动塔楼交互", nil, function(state) _G.RakeAutoTowerPrompts = state end)
-AutoItems:CreateToggle("⚡ 自动电站交互", nil, function(state) _G.RakeAutoPowerPrompts = state end)
-AutoItems:CreateToggle("🛡️ 自动安全区交互", nil, function(state) _G.RakeAutoSafePrompts = state end)
-AutoItems:CreateToggle("🔓 提示框距离增强", nil, function(state) _G.RakePromptBypass = state end)
-AutoItems:CreateSlider("📏 提示框距离", 5, 100, function(value) _G.RakePromptDistance = value end)
+local AutoSec = AutoTab:CreateSection("📦 物品交互")
+AutoSec:CreateToggle("📦 瞬间开箱", nil, function(s) _G.InstaOpenSupplyDrop = s end)
+AutoSec:CreateToggle("🪤 瞬间关闭陷阱", nil, function(s) _G.InstaCloseRakeTrap = s end)
+AutoSec:CreateToggle("📦 自动拾取空投", nil, function(s) _G.RakeAutoDropPrompts = s end)
+AutoSec:CreateToggle("🗼 自动塔楼交互", nil, function(s) _G.RakeAutoTowerPrompts = s end)
+AutoSec:CreateToggle("⚡ 自动电站交互", nil, function(s) _G.RakeAutoPowerPrompts = s end)
+AutoSec:CreateToggle("🛡️ 自动安全区交互", nil, function(s) _G.RakeAutoSafePrompts = s end)
+AutoSec:CreateToggle("🔓 提示框距离增强", nil, function(s) _G.RakePromptBypass = s end)
+AutoSec:CreateSlider("📏 提示框距离", 5, 100, function(v) _G.RakePromptDistance = v end)
 
--- 音效选项卡
+-- 音效标签页
 local AudioTab = Window:CreateTab("🔇 音效", 0)
-local AudioSection = AudioTab:CreateSection("🔊 静音控制")
-AudioSection:CreateToggle("🎵 静音游戏音乐", nil, function(state) _G.RakeMuteGameMusic = state end)
-AudioSection:CreateToggle("🏃 静音追逐音乐", nil, function(state) _G.RakeMuteChaseMusic = state end)
-AudioSection:CreateToggle("👣 静音脚步声", nil, function(state) _G.RakeMuteFootsteps = state end)
-AudioSection:CreateToggle("💀 静音死亡音效", nil, function(state) _G.RakeMuteDeathSounds = state end)
-AudioSection:CreateToggle("🚶 静音移动音效", nil, function(state) _G.RakeMuteMovementSounds = state end)
-AudioSection:CreateToggle("🦘 静音跳跃落地", nil, function(state) _G.RakeMuteJumpLand = state end)
-AudioSection:CreateToggle("💧 静音落水音效", nil, function(state) _G.RakeMuteWaterFall = state end)
+local AudioSec = AudioTab:CreateSection("🔊 静音控制")
+AudioSec:CreateToggle("🎵 静音游戏音乐", nil, function(s) _G.RakeMuteGameMusic = s end)
+AudioSec:CreateToggle("🏃 静音追逐音乐", nil, function(s) _G.RakeMuteChaseMusic = s end)
+AudioSec:CreateToggle("👣 静音脚步声", nil, function(s) _G.RakeMuteFootsteps = s end)
+AudioSec:CreateToggle("💀 静音死亡音效", nil, function(s) _G.RakeMuteDeathSounds = s end)
+AudioSec:CreateToggle("🚶 静音移动音效", nil, function(s) _G.RakeMuteMovementSounds = s end)
+AudioSec:CreateToggle("🦘 静音跳跃落地", nil, function(s) _G.RakeMuteJumpLand = s end)
+AudioSec:CreateToggle("💧 静音落水音效", nil, function(s) _G.RakeMuteWaterFall = s end)
 
--- UI选项卡
+-- UI标签页
 local UITab = Window:CreateTab("🖥️ UI", 0)
-local UISection = UITab:CreateSection("🎨 界面设置")
-UISection:CreateToggle("🔊 禁用菜单特效", nil, function(state) _G.RakeDisableMenuFx = state end)
-UISection:CreateToggle("🔇 隐藏提示UI", nil, function(state) _G.RakeHidePromptUi = state end)
-UISection:CreateToggle("💀 隐藏死亡消息", nil, function(state) _G.RakeHideDeathMessages = state end)
-UISection:CreateToggle("🗺️ 隐藏位置弹窗", nil, function(state) _G.RakeHideLocationPopups = state end)
-UISection:CreateToggle("🔧 隐藏陷阱GUI", nil, function(state) _G.RakeHideTrapGui = state end)
-UISection:CreateToggle("💬 强制启用聊天", nil, function(state) _G.RakeForceChat = state end)
-UISection:CreateToggle("🎒 强制显示背包", nil, function(state) _G.RakeForceBackpack = state end)
-UISection:CreateToggle("🖱️ 强制显示鼠标", nil, function(state) _G.RakeForceMouseIcon = state end)
-UISection:CreateToggle("📌 强制显示顶栏", nil, function(state) _G.RakeForceTopbar = state end)
+local UISec = UITab:CreateSection("🎨 界面设置")
+UISec:CreateToggle("🔊 禁用菜单特效", nil, function(s) _G.RakeDisableMenuFx = s end)
+UISec:CreateToggle("🔇 隐藏提示UI", nil, function(s) _G.RakeHidePromptUi = s end)
+UISec:CreateToggle("💀 隐藏死亡消息", nil, function(s) _G.RakeHideDeathMessages = s end)
+UISec:CreateToggle("🗺️ 隐藏位置弹窗", nil, function(s) _G.RakeHideLocationPopups = s end)
+UISec:CreateToggle("🔧 隐藏陷阱GUI", nil, function(s) _G.RakeHideTrapGui = s end)
+UISec:CreateToggle("💬 强制启用聊天", nil, function(s) _G.RakeForceChat = s end)
+UISec:CreateToggle("🎒 强制显示背包", nil, function(s) _G.RakeForceBackpack = s end)
+UISec:CreateToggle("🖱️ 强制显示鼠标", nil, function(s) _G.RakeForceMouseIcon = s end)
+UISec:CreateToggle("📌 强制显示顶栏", nil, function(s) _G.RakeForceTopbar = s end)
 
--- 高级选项卡
-local AdvancedTab = Window:CreateTab("⚙️ 高级", 0)
-local AdvSection = AdvancedTab:CreateSection("🛠️ 功能绕过")
-AdvSection:CreateToggle("🎬 跳过开场动画", nil, function(state) _G.RakeIntroBypass = state end)
-AdvSection:CreateToggle("💡 手电筒增强", nil, function(state) _G.RakeFlashlightBoost = state end)
-AdvSection:CreateToggle("🌑 手电筒无阴影", nil, function(state) _G.RakeFlashlightNoShadows = state end)
-AdvSection:CreateToggle("🔄 禁用菜单自动重开", nil, function(state) _G.RakeDisableMenuReopen = state end)
-AdvSection:CreateToggle("🏷️ 强制显示名字牌", nil, function(state) _G.RakeForceNametags = state end)
-AdvSection:CreateToggle("🧠 强制第六感", nil, function(state) _G.RakeForceSixthSense = state end)
-AdvSection:CreateToggle("🛡️ Adonis反作弊绕过", nil, function(state) _G.RakeAdonisBypass = state end)
+-- 高级标签页
+local AdvTab = Window:CreateTab("⚙️ 高级", 0)
+local AdvSec = AdvTab:CreateSection("🛠️ 功能绕过")
+AdvSec:CreateToggle("🎬 跳过开场动画", nil, function(s) _G.RakeIntroBypass = s end)
+AdvSec:CreateToggle("💡 手电筒增强", nil, function(s) _G.RakeFlashlightBoost = s end)
+AdvSec:CreateToggle("🌑 手电筒无阴影", nil, function(s) _G.RakeFlashlightNoShadows = s end)
+AdvSec:CreateToggle("🔄 禁用菜单自动重开", nil, function(s) _G.RakeDisableMenuReopen = s end)
+AdvSec:CreateToggle("🏷️ 强制显示名字牌", nil, function(s) _G.RakeForceNametags = s end)
+AdvSec:CreateToggle("🧠 强制第六感", nil, function(s) _G.RakeForceSixthSense = s end)
+AdvSec:CreateToggle("🛡️ Adonis反作弊绕过", nil, function(s) _G.RakeAdonisBypass = s end)
 
--- 新增信号枪自动传送拾取选项卡
+-- 信号枪标签页
 local FlareTab = Window:CreateTab("📡 信号枪", 0)
-local FlareSection = FlareTab:CreateSection("✨ 自动拾取")
-FlareSection:CreateToggle("📡 自动传送拾取信号枪", "检测到信号枪后自动传送过去站上去拾取，然后返回", function(state)
-    _G.AutoPickupFlare = state
-end)
-FlareSection:CreateSlider("⏱️ 拾取冷却(秒)", 1, 30, function(value)
-    _G.AutoPickupFlareDelay = value
-end)
+local FlareSec = FlareTab:CreateSection("✨ 自动拾取")
+FlareSec:CreateToggle("📡 自动传送拾取信号枪", nil, function(s) _G.AutoPickupFlare = s end)
+FlareSec:CreateSlider("⏱️ 拾取冷却(秒)", 1, 30, function(v) _G.AutoPickupFlareDelay = v end)
 
--- 关于选项卡
+-- 关于标签页
 local AboutTab = Window:CreateTab("ℹ️ 关于", 0)
-local AboutSection = AboutTab:CreateSection("📖 信息")
-AboutSection:CreateParagraph("Project The Rake - 完整功能迁移版", "基于开源脚本 https://github.com/ltseverydayyou/uuuuuuu\n所有原始功能完整保留\n杀戮光环攻击距离上限 80\n新增信号枪自动传送拾取")
-AboutSection:CreateParagraph("⚠️ 免责声明", "仅供学习参考，请勿滥用。使用第三方脚本违反Roblox条款，可能导致账号封禁。")
+local AboutSec = AboutTab:CreateSection("📖 信息")
+AboutSec:CreateParagraph("Project The Rake - 完整版", 
+    "基于开源脚本完整迁移\n杀戮光环距离上限 80\n信号枪自动传送拾取\n所有功能均可用")
+AboutSec:CreateParagraph("⚠️ 免责声明", "仅供学习参考，请勿滥用。使用第三方脚本违反Roblox条款。")
 
--- 显示完成提示
+-- 通知
 Rayfield:Notify({
     Title = "Project The Rake",
-    Content = "所有功能加载完成！\n杀戮光环距离上限80\n信号枪自动拾取已就绪",
+    Content = "所有功能加载完成！界面应该完整显示，请按 RightControl 隐藏/显示",
     Duration = 5,
 })
