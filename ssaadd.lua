@@ -11,8 +11,15 @@ if game.GameId ~= 847722000 then
     return
 end
 
--- 加载Rayfield UI库
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- 加载Rayfield UI库，增加加载失败处理
+local RayfieldLoaded, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+if not RayfieldLoaded then
+    warn("Rayfield库加载失败，无法显示UI。请检查网络后重试。")
+    return
+end
+
 local Window = Rayfield:CreateWindow({
     Name = "Rake GUI | Rayfield",
     Icon = 0,
@@ -835,66 +842,85 @@ clientBypass.applyMenuFxBypass()
 clientBypass.applyIntroBypass()
 clientBypass.applyDeathFxBypass()
 
--- ==================== UI 构建区 (Rayfield) ====================
+-- ==================== UI 构建区 (Rayfield) - 错误隔离修复版 ====================
+
+-- 辅助函数：安全创建控件，捕获错误并输出警告
+local function safeCreate(controlType, tab, config, errorMsg)
+    local success, result = pcall(function()
+        if controlType == "Slider" then
+            return tab:CreateSlider(config)
+        elseif controlType == "Toggle" then
+            return tab:CreateToggle(config)
+        elseif controlType == "Keybind" then
+            return tab:CreateKeybind(config)
+        else
+            error("未知控件类型: " .. tostring(controlType))
+        end
+    end)
+    if not success then
+        warn("[Rayfield错误] 创建控件 '" .. (config.Flag or "未命名") .. "' 失败: " .. tostring(result) .. " | " .. (errorMsg or ""))
+    end
+    return success, result
+end
 
 -- 玩家增强标签页
-MainTab:CreateSlider({
+safeCreate("Slider", MainTab, {
     Name = "视野范围 (FOV)",
     Range = {1, 120},
     Increment = 1,
-    CurrentValue = st.fov,
+    CurrentValue = tonumber(st.fov) or 70,
     Flag = "fovSlider",
     Callback = function(Value)
         st.fov = Value
         _G.FieldOfView = Value
         cfgSet("fov", Value)
     end
-})
-MainTab:CreateToggle({
+}, "视野范围滑块")
+safeCreate("Toggle", MainTab, {
     Name = "启用自定义FOV",
-    CurrentValue = st.fovOn,
+    CurrentValue = st.fovOn == true,
     Flag = "fovToggle",
     Callback = function(Value)
         st.fovOn = Value
         _G.enableFOV = Value
         uiBoolSet("fovOn", Value)
     end
-})
-MainTab:CreateToggle({
+}, "FOV开关")
+safeCreate("Toggle", MainTab, {
     Name = "FOV UI修复",
-    CurrentValue = st.fovUiFix,
+    CurrentValue = st.fovUiFix == true,
     Flag = "fovUiFixToggle",
     Callback = function(Value)
         st.fovUiFix = Value
         _G.RakeFovUiFix = Value
         uiBoolSet("fovUiFix", Value)
     end
-})
-MainTab:CreateSlider({
+}, "FOV UI修复")
+safeCreate("Slider", MainTab, {
     Name = "移动速度",
     Range = {0, 30},
     Increment = 1,
-    CurrentValue = st.spd,
+    CurrentValue = tonumber(st.spd) or 16,
     Flag = "speedSlider",
     Callback = function(Value)
         st.spd = Value
         _G.WalkSpeedd = Value
         cfgSet("spd", Value)
     end
-})
-MainTab:CreateToggle({
+}, "移动速度滑块")
+safeCreate("Toggle", MainTab, {
     Name = "启用自定义移动速度",
-    CurrentValue = st.spdOn,
+    CurrentValue = st.spdOn == true,
     Flag = "speedToggle",
     Callback = function(Value)
         st.spdOn = Value
         _G.enableSpeed = Value
         uiBoolSet("spdOn", Value)
     end
-})
-MainTab:CreateToggle({
+}, "速度开关")
+safeCreate("Toggle", MainTab, {
     Name = "无限耐力",
-    CurrentValue = st.infStamina,
+    CurrentValue = st.infStamina == true,
     Flag = "infStaminaToggle",
     Callback = function(Value)
         st.infStamina = Value
@@ -902,10 +928,10 @@ MainTab:CreateToggle({
         uiBoolSet("infStamina", Value)
         queueInfTabs()
     end
-})
-MainTab:CreateToggle({
+}, "无限耐力")
+safeCreate("Toggle", MainTab, {
     Name = "无限夜视",
-    CurrentValue = st.infNight,
+    CurrentValue = st.infNight == true,
     Flag = "infNightToggle",
     Callback = function(Value)
         st.infNight = Value
@@ -913,250 +939,250 @@ MainTab:CreateToggle({
         uiBoolSet("infNight", Value)
         queueInfTabs()
     end
-})
-MainTab:CreateToggle({
+}, "无限夜视")
+safeCreate("Toggle", MainTab, {
     Name = "无坠落伤害",
-    CurrentValue = st.noFall,
+    CurrentValue = st.noFall == true,
     Flag = "noFallToggle",
     Callback = function(Value)
         st.noFall = Value
         _G.NoFallDMG = Value
         uiBoolSet("noFall", Value)
     end
-})
-MainTab:CreateToggle({
+}, "无坠落伤害")
+safeCreate("Toggle", MainTab, {
     Name = "无跌落/倒地状态",
-    CurrentValue = st.noDowned,
+    CurrentValue = st.noDowned == true,
     Flag = "noDownedToggle",
     Callback = function(Value)
         st.noDowned = Value
         _G.RakeNoDowned = Value
         uiBoolSet("noDowned", Value)
     end
-})
-MainTab:CreateToggle({
+}, "无倒地")
+safeCreate("Toggle", MainTab, {
     Name = "无移动锁定",
-    CurrentValue = st.noMoveLock,
+    CurrentValue = st.noMoveLock == true,
     Flag = "noMoveLockToggle",
     Callback = function(Value)
         st.noMoveLock = Value
         _G.RakeNoMoveLock = Value
         uiBoolSet("noMoveLock", Value)
     end
-})
+}, "无移动锁定")
 
 -- 战斗辅助标签页
-CombatTab:CreateToggle({
+safeCreate("Toggle", CombatTab, {
     Name = "Rake Kill Aura",
-    CurrentValue = st.rakeAura,
+    CurrentValue = st.rakeAura == true,
     Flag = "killAuraToggle",
     Callback = function(Value)
         st.rakeAura = Value
         _G.RakeKillAura = Value
         uiBoolSet("rakeAura", Value)
     end
-})
-CombatTab:CreateSlider({
+}, "Kill aura开关")
+safeCreate("Slider", CombatTab, {
     Name = "Kill Aura 范围",
     Range = {6, 30},
     Increment = 1,
-    CurrentValue = st.rakeAuraRange,
+    CurrentValue = tonumber(st.rakeAuraRange) or 12,
     Flag = "auraRangeSlider",
     Callback = function(Value)
         st.rakeAuraRange = Value
         _G.RakeAuraRange = Value
         cfgSet("rakeAuraRange", Value)
     end
-})
-CombatTab:CreateSlider({
+}, "aura范围")
+safeCreate("Slider", CombatTab, {
     Name = "Kill Aura 延迟 (秒)",
     Range = {0.05, 0.6},
     Increment = 0.01,
-    CurrentValue = st.rakeAuraDelay,
+    CurrentValue = tonumber(st.rakeAuraDelay) or 0.12,
     Flag = "auraDelaySlider",
     Callback = function(Value)
         st.rakeAuraDelay = Value
         _G.RakeAuraDelay = Value
         cfgSet("rakeAuraDelay", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "aura延迟")
+safeCreate("Toggle", CombatTab, {
     Name = "Kill Aura 自动装备武器",
-    CurrentValue = st.rakeAuraAutoEquip,
+    CurrentValue = st.rakeAuraAutoEquip == true,
     Flag = "autoEquipToggle",
     Callback = function(Value)
         st.rakeAuraAutoEquip = Value
         _G.RakeAuraAutoEquip = Value
         uiBoolSet("rakeAuraAutoEquip", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "自动装备")
+safeCreate("Toggle", CombatTab, {
     Name = "Rake Chams (高亮)",
-    CurrentValue = st.rakeChams,
+    CurrentValue = st.rakeChams == true,
     Flag = "rakeChamsToggle",
     Callback = function(Value)
         st.rakeChams = Value
         _G.RakeChams = Value
         uiBoolSet("rakeChams", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "chams")
+safeCreate("Toggle", CombatTab, {
     Name = "无陷阱锁定",
-    CurrentValue = st.noTrapLock,
+    CurrentValue = st.noTrapLock == true,
     Flag = "noTrapLockToggle",
     Callback = function(Value)
         st.noTrapLock = Value
         _G.RakeNoTrapLock = Value
         uiBoolSet("noTrapLock", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "无陷阱锁定")
+safeCreate("Toggle", CombatTab, {
     Name = "无跳跃冷却",
-    CurrentValue = st.noJumpCooldown,
+    CurrentValue = st.noJumpCooldown == true,
     Flag = "noJumpCooldownToggle",
     Callback = function(Value)
         st.noJumpCooldown = Value
         _G.RakeNoJumpCooldown = Value
         uiBoolSet("noJumpCooldown", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "无跳跃冷却")
+safeCreate("Toggle", CombatTab, {
     Name = "无跳跃惊吓镜头",
-    CurrentValue = st.noJumpscareCam,
+    CurrentValue = st.noJumpscareCam == true,
     Flag = "noJumpscareCamToggle",
     Callback = function(Value)
         st.noJumpscareCam = Value
         _G.RakeNoJumpscareCam = Value
         uiBoolSet("noJumpscareCam", Value)
     end
-})
-CombatTab:CreateToggle({
+}, "无惊吓镜头")
+safeCreate("Toggle", CombatTab, {
     Name = "无追逐静电效果",
-    CurrentValue = st.noChaseStatic,
+    CurrentValue = st.noChaseStatic == true,
     Flag = "noChaseStaticToggle",
     Callback = function(Value)
         st.noChaseStatic = Value
         _G.RakeNoChaseStatic = Value
         uiBoolSet("noChaseStatic", Value)
     end
-})
+}, "无静电")
 
 -- 透视ESP标签页
-ESPTab:CreateToggle({
+safeCreate("Toggle", ESPTab, {
     Name = "玩家ESP",
-    CurrentValue = st.playerEsp,
+    CurrentValue = st.playerEsp == true,
     Flag = "playerEspToggle",
     Callback = function(Value)
         st.playerEsp = Value
         _G.PlayerESP = Value
         uiBoolSet("playerEsp", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "玩家ESP")
+safeCreate("Toggle", ESPTab, {
     Name = "信号枪ESP",
-    CurrentValue = st.flareEsp,
+    CurrentValue = st.flareEsp == true,
     Flag = "flareEspToggle",
     Callback = function(Value)
         st.flareEsp = Value
         _G.FlareGunESP = Value
         uiBoolSet("flareEsp", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "信号枪ESP")
+safeCreate("Toggle", ESPTab, {
     Name = "空投箱ESP",
-    CurrentValue = st.dropEsp,
+    CurrentValue = st.dropEsp == true,
     Flag = "dropEspToggle",
     Callback = function(Value)
         st.dropEsp = Value
         _G.SupplyDropESP = Value
         uiBoolSet("dropEsp", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "空投ESP")
+safeCreate("Toggle", ESPTab, {
     Name = "地点ESP",
-    CurrentValue = st.locEsp,
+    CurrentValue = st.locEsp == true,
     Flag = "locEspToggle",
     Callback = function(Value)
         st.locEsp = Value
         _G.LocationESP = Value
         uiBoolSet("locEsp", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "地点ESP")
+safeCreate("Toggle", ESPTab, {
     Name = "物资ESP",
-    CurrentValue = st.scrapEsp,
+    CurrentValue = st.scrapEsp == true,
     Flag = "scrapEspToggle",
     Callback = function(Value)
         st.scrapEsp = Value
         _G.ScrapESP = Value
         uiBoolSet("scrapEsp", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "物资ESP")
+safeCreate("Toggle", ESPTab, {
     Name = "陷阱ESP",
-    CurrentValue = st.trapEsp,
+    CurrentValue = st.trapEsp == true,
     Flag = "trapEspToggle",
     Callback = function(Value)
         st.trapEsp = Value
         _G.RakeTrapESP = Value
         uiBoolSet("trapEsp", Value)
     end
-})
-ESPTab:CreateSlider({
+}, "陷阱ESP")
+safeCreate("Slider", ESPTab, {
     Name = "ESP文字大小",
     Range = {8, 24},
     Increment = 1,
-    CurrentValue = st.espSize,
+    CurrentValue = tonumber(st.espSize) or 12,
     Flag = "espSizeSlider",
     Callback = function(Value)
         st.espSize = Value
         cfgSet("espSize", Value)
     end
-})
-ESPTab:CreateSlider({
+}, "ESP文字大小")
+safeCreate("Slider", ESPTab, {
     Name = "ESP扫描间隔 (秒)",
     Range = {0.2, 3},
     Increment = 0.05,
-    CurrentValue = st.espScan,
+    CurrentValue = tonumber(st.espScan) or 0.75,
     Flag = "espScanSlider",
     Callback = function(Value)
         st.espScan = Value
         cfgSet("espScan", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "扫描间隔")
+safeCreate("Toggle", ESPTab, {
     Name = "ESP Chams效果",
-    CurrentValue = st.espChams,
+    CurrentValue = st.espChams == true,
     Flag = "espChamsToggle",
     Callback = function(Value)
         st.espChams = Value
         uiBoolSet("espChams", Value)
     end
-})
-ESPTab:CreateToggle({
+}, "ESP Chams")
+safeCreate("Toggle", ESPTab, {
     Name = "ESP显示距离",
-    CurrentValue = st.espDist,
+    CurrentValue = st.espDist == true,
     Flag = "espDistToggle",
     Callback = function(Value)
         st.espDist = Value
         uiBoolSet("espDist", Value)
     end
-})
+}, "显示距离")
 
 -- 世界修改标签页
-WorldTab:CreateToggle({
+safeCreate("Toggle", WorldTab, {
     Name = "无迷雾",
-    CurrentValue = st.noFog,
+    CurrentValue = st.noFog == true,
     Flag = "noFogToggle",
     Callback = function(Value)
         st.noFog = Value
         _G.NoFog = Value
         uiBoolSet("noFog", Value)
     end
-})
-WorldTab:CreateToggle({
+}, "无迷雾")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用阴影",
-    CurrentValue = st.disableShadows,
+    CurrentValue = st.disableShadows == true,
     Flag = "disableShadowsToggle",
     Callback = function(Value)
         st.disableShadows = Value
@@ -1164,20 +1190,20 @@ WorldTab:CreateToggle({
         uiBoolSet("disableShadows", Value)
         clientBypass.applyGameSettingOverrides()
     end
-})
-WorldTab:CreateToggle({
+}, "禁用阴影")
+safeCreate("Toggle", WorldTab, {
     Name = "全局全亮度",
-    CurrentValue = st.fullbright,
+    CurrentValue = st.fullbright == true,
     Flag = "fullbrightToggle",
     Callback = function(Value)
         st.fullbright = Value
         _G.RakeFullbright = Value
         uiBoolSet("fullbright", Value)
     end
-})
-WorldTab:CreateToggle({
+}, "全亮度")
+safeCreate("Toggle", WorldTab, {
     Name = "强制游戏内聊天显示",
-    CurrentValue = st.forceChat,
+    CurrentValue = st.forceChat == true,
     Flag = "forceChatToggle",
     Callback = function(Value)
         st.forceChat = Value
@@ -1185,10 +1211,10 @@ WorldTab:CreateToggle({
         uiBoolSet("forceChat", Value)
         clientBypass.applyGameSettingOverrides()
     end
-})
-WorldTab:CreateToggle({
+}, "强制聊天")
+safeCreate("Toggle", WorldTab, {
     Name = "强制显示玩家名牌",
-    CurrentValue = st.enableNametags,
+    CurrentValue = st.enableNametags == true,
     Flag = "nametagsToggle",
     Callback = function(Value)
         st.enableNametags = Value
@@ -1196,10 +1222,10 @@ WorldTab:CreateToggle({
         uiBoolSet("enableNametags", Value)
         clientBypass.applyGameSettingOverrides()
     end
-})
-WorldTab:CreateToggle({
+}, "强制名牌")
+safeCreate("Toggle", WorldTab, {
     Name = "强制启用第六感技能",
-    CurrentValue = st.enableSixthSense,
+    CurrentValue = st.enableSixthSense == true,
     Flag = "sixthSenseToggle",
     Callback = function(Value)
         st.enableSixthSense = Value
@@ -1207,10 +1233,10 @@ WorldTab:CreateToggle({
         uiBoolSet("enableSixthSense", Value)
         clientBypass.applyGameSettingOverrides()
     end
-})
-WorldTab:CreateToggle({
+}, "第六感")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用死亡特效",
-    CurrentValue = st.disableDeathFx,
+    CurrentValue = st.disableDeathFx == true,
     Flag = "disableDeathFxToggle",
     Callback = function(Value)
         st.disableDeathFx = Value
@@ -1218,10 +1244,10 @@ WorldTab:CreateToggle({
         uiBoolSet("disableDeathFx", Value)
         clientBypass.applyDeathFxBypass()
     end
-})
-WorldTab:CreateToggle({
+}, "禁用死亡特效")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用动态模糊",
-    CurrentValue = st.disableMotionBlur,
+    CurrentValue = st.disableMotionBlur == true,
     Flag = "disableMotionBlurToggle",
     Callback = function(Value)
         st.disableMotionBlur = Value
@@ -1229,10 +1255,10 @@ WorldTab:CreateToggle({
         uiBoolSet("disableMotionBlur", Value)
         clientBypass.applyMotionBlurBypass()
     end
-})
-WorldTab:CreateToggle({
+}, "禁用动态模糊")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用菜单特效",
-    CurrentValue = st.disableMenuFx,
+    CurrentValue = st.disableMenuFx == true,
     Flag = "disableMenuFxToggle",
     Callback = function(Value)
         st.disableMenuFx = Value
@@ -1240,10 +1266,10 @@ WorldTab:CreateToggle({
         uiBoolSet("disableMenuFx", Value)
         clientBypass.applyMenuFxBypass()
     end
-})
-WorldTab:CreateToggle({
+}, "禁用菜单特效")
+safeCreate("Toggle", WorldTab, {
     Name = "开场动画跳过",
-    CurrentValue = st.introBypass,
+    CurrentValue = st.introBypass == true,
     Flag = "introBypassToggle",
     Callback = function(Value)
         st.introBypass = Value
@@ -1251,30 +1277,30 @@ WorldTab:CreateToggle({
         uiBoolSet("introBypass", Value)
         clientBypass.applyIntroBypass()
     end
-})
-WorldTab:CreateToggle({
+}, "跳过开场")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用镜头抖动",
-    CurrentValue = st.disableCameraShake,
+    CurrentValue = st.disableCameraShake == true,
     Flag = "disableCameraShakeToggle",
     Callback = function(Value)
         st.disableCameraShake = Value
         uiBoolSet("disableCameraShake", Value)
     end
-})
-WorldTab:CreateToggle({
+}, "禁用镜头抖动")
+safeCreate("Toggle", WorldTab, {
     Name = "禁用镜头摆动",
-    CurrentValue = st.disableCameraBobbing,
+    CurrentValue = st.disableCameraBobbing == true,
     Flag = "disableCameraBobbingToggle",
     Callback = function(Value)
         st.disableCameraBobbing = Value
         uiBoolSet("disableCameraBobbing", Value)
     end
-})
+}, "禁用镜头摆动")
 
 -- 音量调节标签页
-MuteTab:CreateToggle({
+safeCreate("Toggle", MuteTab, {
     Name = "静音游戏音乐",
-    CurrentValue = st.muteGameMusic,
+    CurrentValue = st.muteGameMusic == true,
     Flag = "muteGameMusicToggle",
     Callback = function(Value)
         st.muteGameMusic = Value
@@ -1282,10 +1308,10 @@ MuteTab:CreateToggle({
         uiBoolSet("muteGameMusic", Value)
         clientBypass.setSoundVolume("GameMusic", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音游戏音乐")
+safeCreate("Toggle", MuteTab, {
     Name = "静音追逐音乐",
-    CurrentValue = st.muteChaseMusic,
+    CurrentValue = st.muteChaseMusic == true,
     Flag = "muteChaseMusicToggle",
     Callback = function(Value)
         st.muteChaseMusic = Value
@@ -1293,142 +1319,142 @@ MuteTab:CreateToggle({
         uiBoolSet("muteChaseMusic", Value)
         clientBypass.setSoundVolume("ChaseMusic", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音追逐音乐")
+safeCreate("Toggle", MuteTab, {
     Name = "静音移动声音",
-    CurrentValue = st.muteMovementSounds,
+    CurrentValue = st.muteMovementSounds == true,
     Flag = "muteMovementToggle",
     Callback = function(Value)
         st.muteMovementSounds = Value
         _G.RakeMuteMovementSounds = Value
         uiBoolSet("muteMovementSounds", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音移动音效")
+safeCreate("Toggle", MuteTab, {
     Name = "静音脚步声",
-    CurrentValue = st.muteFootsteps,
+    CurrentValue = st.muteFootsteps == true,
     Flag = "muteFootstepsToggle",
     Callback = function(Value)
         st.muteFootsteps = Value
         _G.RakeMuteFootsteps = Value
         uiBoolSet("muteFootsteps", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音脚步声")
+safeCreate("Toggle", MuteTab, {
     Name = "静音跳跃落地声",
-    CurrentValue = st.muteJumpLand,
+    CurrentValue = st.muteJumpLand == true,
     Flag = "muteJumpLandToggle",
     Callback = function(Value)
         st.muteJumpLand = Value
         _G.RakeMuteJumpLand = Value
         uiBoolSet("muteJumpLand", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音跳跃落地")
+safeCreate("Toggle", MuteTab, {
     Name = "静音落水声",
-    CurrentValue = st.muteWaterFall,
+    CurrentValue = st.muteWaterFall == true,
     Flag = "muteWaterFallToggle",
     Callback = function(Value)
         st.muteWaterFall = Value
         _G.RakeMuteWaterFall = Value
         uiBoolSet("muteWaterFall", Value)
     end
-})
-MuteTab:CreateToggle({
+}, "静音落水")
+safeCreate("Toggle", MuteTab, {
     Name = "静音死亡音效",
-    CurrentValue = st.muteDeathSounds,
+    CurrentValue = st.muteDeathSounds == true,
     Flag = "muteDeathSoundsToggle",
     Callback = function(Value)
         st.muteDeathSounds = Value
         _G.RakeMuteDeathSounds = Value
         uiBoolSet("muteDeathSounds", Value)
     end
-})
+}, "静音死亡音效")
 
 -- 杂项设置标签页
-MiscTab:CreateToggle({
+safeCreate("Toggle", MiscTab, {
     Name = "手电筒无阴影",
-    CurrentValue = st.flashlightNoShadows,
+    CurrentValue = st.flashlightNoShadows == true,
     Flag = "flashlightNoShadowsToggle",
     Callback = function(Value)
         st.flashlightNoShadows = Value
         _G.RakeFlashlightNoShadows = Value
         uiBoolSet("flashlightNoShadows", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "手电筒无阴影")
+safeCreate("Toggle", MiscTab, {
     Name = "手电筒亮度增强",
-    CurrentValue = st.flashlightBoost,
+    CurrentValue = st.flashlightBoost == true,
     Flag = "flashlightBoostToggle",
     Callback = function(Value)
         st.flashlightBoost = Value
         _G.RakeFlashlightBoost = Value
         uiBoolSet("flashlightBoost", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "手电筒增强")
+safeCreate("Toggle", MiscTab, {
     Name = "禁用菜单自动重新打开",
-    CurrentValue = st.disableMenuReopen,
+    CurrentValue = st.disableMenuReopen == true,
     Flag = "disableMenuReopenToggle",
     Callback = function(Value)
         st.disableMenuReopen = Value
         _G.RakeDisableMenuReopen = Value
         uiBoolSet("disableMenuReopen", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "禁用菜单自动打开")
+safeCreate("Toggle", MiscTab, {
     Name = "隐藏位置弹窗",
-    CurrentValue = st.hideLocationPopups,
+    CurrentValue = st.hideLocationPopups == true,
     Flag = "hideLocationPopupsToggle",
     Callback = function(Value)
         st.hideLocationPopups = Value
         _G.RakeHideLocationPopups = Value
         uiBoolSet("hideLocationPopups", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "隐藏位置弹窗")
+safeCreate("Toggle", MiscTab, {
     Name = "隐藏物资弹窗",
-    CurrentValue = st.hideScrapPopups,
+    CurrentValue = st.hideScrapPopups == true,
     Flag = "hideScrapPopupsToggle",
     Callback = function(Value)
         st.hideScrapPopups = Value
         _G.RakeHideScrapPopups = Value
         uiBoolSet("hideScrapPopups", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "隐藏物资弹窗")
+safeCreate("Toggle", MiscTab, {
     Name = "隐藏陷阱界面",
-    CurrentValue = st.hideTrapGui,
+    CurrentValue = st.hideTrapGui == true,
     Flag = "hideTrapGuiToggle",
     Callback = function(Value)
         st.hideTrapGui = Value
         _G.RakeHideTrapGui = Value
         uiBoolSet("hideTrapGui", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "隐藏陷阱界面")
+safeCreate("Toggle", MiscTab, {
     Name = "隐藏死亡消息",
-    CurrentValue = st.hideDeathMessages,
+    CurrentValue = st.hideDeathMessages == true,
     Flag = "hideDeathMessagesToggle",
     Callback = function(Value)
         st.hideDeathMessages = Value
         _G.RakeHideDeathMessages = Value
         uiBoolSet("hideDeathMessages", Value)
     end
-})
-MiscTab:CreateToggle({
+}, "隐藏死亡消息")
+safeCreate("Toggle", MiscTab, {
     Name = "安全恢复 (死亡后保留装备)",
-    CurrentValue = st.safeRecover,
+    CurrentValue = st.safeRecover == true,
     Flag = "safeRecoverToggle",
     Callback = function(Value)
         st.safeRecover = Value
         _G.RakeSafeRecover = Value
         uiBoolSet("safeRecover", Value)
     end
-})
+}, "安全恢复")
 
 -- 界面设置标签页
-UISettingsTab:CreateKeybind({
+safeCreate("Keybind", UISettingsTab, {
     Name = "GUI显示/隐藏快捷键",
     CurrentKeybind = st.uiBind,
     Flag = "uiBindKeybind",
@@ -1437,28 +1463,28 @@ UISettingsTab:CreateKeybind({
         cfgSet("uiBind", tostring(Keybind))
         Rayfield:ToggleUI()
     end
-})
-UISettingsTab:CreateToggle({
+}, "界面快捷键")
+safeCreate("Toggle", UISettingsTab, {
     Name = "显示光标",
-    CurrentValue = st.uiCursor,
+    CurrentValue = st.uiCursor == true,
     Flag = "uiCursorToggle",
     Callback = function(Value)
         st.uiCursor = Value
         uiBoolSet("uiCursor", Value)
     end
-})
-UISettingsTab:CreateToggle({
+}, "光标显示")
+safeCreate("Toggle", UISettingsTab, {
     Name = "显示信息气泡",
-    CurrentValue = st.infoBubble,
+    CurrentValue = st.infoBubble == true,
     Flag = "infoBubbleToggle",
     Callback = function(Value)
         st.infoBubble = Value
         uiBoolSet("infoBubble", Value)
     end
-})
-UISettingsTab:CreateToggle({
+}, "信息气泡")
+safeCreate("Toggle", UISettingsTab, {
     Name = "Adonis反脚本检测绕过",
-    CurrentValue = st.adonisBypass,
+    CurrentValue = st.adonisBypass == true,
     Flag = "adonisBypassToggle",
     Callback = function(Value)
         st.adonisBypass = Value
@@ -1466,46 +1492,46 @@ UISettingsTab:CreateToggle({
         uiBoolSet("adonisBypass", Value)
         task.spawn(runAdonisBypass)
     end
-})
-UISettingsTab:CreateToggle({
+}, "Adonis绕过")
+safeCreate("Toggle", UISettingsTab, {
     Name = "强制PC设备模式",
-    CurrentValue = st.forcePcDevice,
+    CurrentValue = st.forcePcDevice == true,
     Flag = "forcePcDeviceToggle",
     Callback = function(Value)
         st.forcePcDevice = Value
         uiBoolSet("forcePcDevice", Value)
     end
-})
-UISettingsTab:CreateToggle({
+}, "强制PC模式")
+safeCreate("Toggle", UISettingsTab, {
     Name = "强制背包UI显示",
-    CurrentValue = st.forceBackpack,
+    CurrentValue = st.forceBackpack == true,
     Flag = "forceBackpackToggle",
     Callback = function(Value)
         st.forceBackpack = Value
         uiBoolSet("forceBackpack", Value)
         clientBypass.forceCoreParts()
     end
-})
-UISettingsTab:CreateToggle({
+}, "强制背包")
+safeCreate("Toggle", UISettingsTab, {
     Name = "强制顶栏UI显示",
-    CurrentValue = st.forceTopbar,
+    CurrentValue = st.forceTopbar == true,
     Flag = "forceTopbarToggle",
     Callback = function(Value)
         st.forceTopbar = Value
         uiBoolSet("forceTopbar", Value)
         clientBypass.forceCoreParts()
     end
-})
-UISettingsTab:CreateToggle({
+}, "强制顶栏")
+safeCreate("Toggle", UISettingsTab, {
     Name = "强制鼠标图标显示",
-    CurrentValue = st.forceMouseIcon,
+    CurrentValue = st.forceMouseIcon == true,
     Flag = "forceMouseIconToggle",
     Callback = function(Value)
         st.forceMouseIcon = Value
         uiBoolSet("forceMouseIcon", Value)
         clientBypass.forceCoreParts()
     end
-})
+}, "强制鼠标图标")
 
 -- 界面加载完成通知
 Rayfield:Notify({
